@@ -491,71 +491,100 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const syncData = async () => {
     try {
       // 1. Fetch Users
-      const { data: usersData, error: uErr } = await supabase.from('users').select('*');
-      if (!uErr && usersData) {
-        const parsedUsers = usersData.map(convertUser);
-        setUsers(parsedUsers);
-        localStorage.setItem(USERS_KEY, JSON.stringify(parsedUsers));
+      try {
+        const { data: usersData, error: uErr } = await supabase.from('users').select('*');
+        if (!uErr && usersData) {
+          const parsedUsers = usersData.map(convertUser);
+          setUsers(parsedUsers);
+          localStorage.setItem(USERS_KEY, JSON.stringify(parsedUsers));
 
-        // Sync active user details in case status/role has changed on other devices
-        const storedUser = localStorage.getItem(CURRENT_USER_KEY);
-        if (storedUser) {
-          const parsedStored = JSON.parse(storedUser);
-          const latestUser = parsedUsers.find(u => u.id === parsedStored.id);
-          if (latestUser) {
-            setCurrentUser(latestUser);
-            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(latestUser));
+          // Sync active user details in case status/role has changed on other devices
+          const storedUser = localStorage.getItem(CURRENT_USER_KEY);
+          if (storedUser) {
+            const parsedStored = JSON.parse(storedUser);
+            const latestUser = parsedUsers.find(u => u.id === parsedStored.id);
+            if (latestUser) {
+              setCurrentUser(latestUser);
+              localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(latestUser));
+            }
           }
         }
+      } catch (err) {
+        console.error('Fetch users error:', err);
       }
 
       // 2. Fetch Projects
-      const { data: projectsData, error: pErr } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
-      if (!pErr && projectsData) {
-        const parsed = projectsData.map(convertProject);
-        setProjects(parsed);
-        localStorage.setItem(PROJECTS_KEY, JSON.stringify(parsed));
+      try {
+        const { data: projectsData, error: pErr } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+        if (!pErr && projectsData) {
+          const parsed = projectsData.map(convertProject);
+          setProjects(parsed);
+          localStorage.setItem(PROJECTS_KEY, JSON.stringify(parsed));
+        }
+      } catch (err) {
+        console.error('Fetch projects error:', err);
       }
 
       // 3. Fetch Transactions
-      const { data: transactionsData, error: tErr } = await supabase.from('transactions').select('*').order('date', { ascending: false });
-      if (!tErr && transactionsData) {
-        const parsed = transactionsData.map(convertTransaction);
-        setTransactions(parsed);
-        localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(parsed));
+      try {
+        const { data: transactionsData, error: tErr } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+        if (!tErr && transactionsData) {
+          const parsed = transactionsData.map(convertTransaction);
+          setTransactions(parsed);
+          localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(parsed));
+        }
+      } catch (err) {
+        console.error('Fetch transactions error:', err);
       }
 
       // 4. Fetch Clients
-      const { data: clientsData, error: cErr } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
-      if (!cErr && clientsData) {
-        const parsed = clientsData.map(convertClient);
-        setClients(parsed);
-        localStorage.setItem(CLIENTS_KEY, JSON.stringify(parsed));
+      try {
+        const { data: clientsData, error: cErr } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+        if (!cErr && clientsData) {
+          const parsed = clientsData.map(convertClient);
+          setClients(parsed);
+          localStorage.setItem(CLIENTS_KEY, JSON.stringify(parsed));
+        }
+      } catch (err) {
+        console.error('Fetch clients error:', err);
       }
 
       // 5. Fetch Stock Items
-      const { data: stockData, error: sErr } = await supabase.from('stock_items').select('*').order('created_at', { ascending: false });
-      if (!sErr && stockData) {
-        const parsed = stockData.map(convertStockItem);
-        setStockItems(parsed);
-        localStorage.setItem(STOCK_KEY, JSON.stringify(parsed));
+      try {
+        const { data: stockData, error: sErr } = await supabase.from('stock_items').select('*').order('created_at', { ascending: false });
+        if (!sErr && stockData) {
+          const parsed = stockData.map(convertStockItem);
+          setStockItems(parsed);
+          localStorage.setItem(STOCK_KEY, JSON.stringify(parsed));
+        }
+      } catch (err) {
+        console.error('Fetch stock error:', err);
       }
 
       // 6. Fetch Units
-      const { data: unitsData, error: unErr } = await supabase.from('units').select('*').order('created_at', { ascending: false });
-      if (!unErr && unitsData) {
-        const parsed = unitsData.map(convertUnit);
-        setUnits(parsed);
-        localStorage.setItem(UNITS_KEY, JSON.stringify(parsed));
+      try {
+        const { data: unitsData, error: unErr } = await supabase.from('units').select('*').order('created_at', { ascending: false });
+        if (!unErr && unitsData) {
+          const parsed = unitsData.map(convertUnit);
+          setUnits(parsed);
+          localStorage.setItem(UNITS_KEY, JSON.stringify(parsed));
+        }
+      } catch (err) {
+        console.error('Fetch units error:', err);
       }
 
       // 7. Fetch Invoices
-      const { data: invoicesData, error: iErr } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
-      if (!iErr && invoicesData) {
-        const parsed = invoicesData.map(convertInvoice);
-        setInvoices(parsed);
-        localStorage.setItem(INVOICES_KEY, JSON.stringify(parsed));
+      try {
+        const { data: invoicesData, error: iErr } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
+        if (!iErr && invoicesData) {
+          const parsed = invoicesData.map(convertInvoice);
+          setInvoices(parsed);
+          localStorage.setItem(INVOICES_KEY, JSON.stringify(parsed));
+        }
+      } catch (err) {
+        console.error('Fetch invoices error:', err);
       }
+
       return true;
     } catch (err) {
       console.error('Supabase syncData error:', err);
@@ -563,25 +592,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  // Initialize data from Supabase, fall back to LocalStorage
+  // Offline-first initial load: load from LocalStorage immediately, then sync from Supabase in the background
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        const synced = await syncData();
-        if (synced) {
-          const storedUser = localStorage.getItem(CURRENT_USER_KEY);
-          if (storedUser) {
-            setCurrentUser(JSON.parse(storedUser));
-          }
-          setIsLoading(false);
-          return;
-        }
-      } catch (err) {
-        console.error('Failed to load from Supabase, falling back to LocalStorage:', err);
-      }
-
-      // Fallback
-      try {
+        // 1. Load everything from LocalStorage first to ensure instant 0ms startup
         const storedUsers = localStorage.getItem(USERS_KEY);
         let initialUsers: User[] = [];
         if (storedUsers) {
@@ -627,7 +642,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         console.error('Failed to load local data:', err);
       } finally {
+        // App becomes interactive instantly
         setIsLoading(false);
+      }
+
+      // 2. Perform background synchronization with Supabase cloud
+      try {
+        await syncData();
+      } catch (err) {
+        console.error('Background sync failed on initialize:', err);
       }
     };
     initializeApp();
