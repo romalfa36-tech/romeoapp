@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from './supabase';
 import { User, Project, Transaction, Client, StockItem, Unit, Invoice, Notification, generateId } from './types';
 
 // Supported languages
@@ -243,112 +242,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Current user key for local storage
 const CURRENT_USER_KEY = 'beeforce_current_user';
-
-// Helper to convert Supabase user
-const convertUser = (data: any): User => ({
-  id: data.id,
-  email: data.email,
-  name: data.name,
-  role: data.role,
-  permissions: data.permissions || [],
-  username: data.username,
-  createdAt: data.created_at,
-  isActive: data.is_active,
-});
-
-// Helper to convert Supabase project
-const convertProject = (data: any): Project => ({
-  id: data.id,
-  name: data.name,
-  clientName: data.client_name,
-  shootDates: data.shoot_dates || '',
-  analyticalAccount: data.analytical_account || '',
-  status: data.status || 'draft',
-  hasTaxInvoice: data.has_tax_invoice || false,
-  notes: data.notes || '',
-  createdBy: data.created_by || '',
-  assignedTo: data.assigned_to || [],
-  createdAt: data.created_at,
-  updatedAt: data.updated_at,
-});
-
-// Helper to convert Supabase transaction
-const convertTransaction = (data: any): Transaction => ({
-  id: data.id,
-  no: data.no || '',
-  date: data.date,
-  supplierName: data.supplier_name,
-  description: data.description || '',
-  category: data.category,
-  debit: data.debit || 0,
-  credit: data.credit || 0,
-  balance: data.balance || 0,
-  projectId: data.project_id || '',
-  projectName: data.project_name || '',
-  hasTaxInvoice: data.has_tax_invoice || false,
-  notes: data.notes || '',
-  createdBy: data.created_by || '',
-  createdAt: data.created_at,
-});
-
-// Helper to convert Supabase client
-const convertClient = (data: any): Client => ({
-  id: data.id,
-  name: data.name,
-  email: data.email || '',
-  phone: data.phone || '',
-  company: data.company || '',
-  address: data.address || '',
-  notes: data.notes || '',
-  createdAt: data.created_at,
-});
-
-// Helper to convert Supabase stock item
-const convertStockItem = (data: any): StockItem => ({
-  id: data.id,
-  name: data.name,
-  category: data.category || '',
-  unit: data.unit || '',
-  quantity: data.quantity || 0,
-  minQuantity: data.min_quantity || 0,
-  costPerUnit: data.cost_per_unit || 0,
-  supplier: data.supplier || '',
-  notes: data.notes || '',
-  createdAt: data.created_at,
-});
-
-// Helper to convert Supabase unit
-const convertUnit = (data: any): Unit => ({
-  id: data.id,
-  name: data.name,
-  type: data.type || 'other',
-  status: data.status || 'available',
-  capacity: data.capacity || 0,
-  notes: data.notes || '',
-  createdAt: data.created_at,
-});
-
-// Helper to convert Supabase invoice
-const convertInvoice = (data: any): Invoice => ({
-  id: data.id,
-  invoiceNumber: data.invoice_number || '',
-  type: data.type || 'invoice',
-  projectId: data.project_id || '',
-  projectName: data.project_name || '',
-  clientName: data.client_name || '',
-  amount: data.amount || 0,
-  vatAmount: data.vat_amount || 0,
-  totalAmount: data.total_amount || 0,
-  status: data.status || 'draft',
-  dueDate: data.due_date || '',
-  items: data.items || [],
-  attachments: data.attachments || [],
-  notes: data.notes || '',
-  createdBy: data.created_by || '',
-  reviewedBy: data.reviewed_by,
-  reviewedAt: data.reviewed_at,
-  createdAt: data.created_at,
-});
+const USERS_KEY = 'beeforce_users';
+const PROJECTS_KEY = 'beeforce_projects';
+const TRANSACTIONS_KEY = 'beeforce_transactions';
+const CLIENTS_KEY = 'beeforce_clients';
+const STOCK_KEY = 'beeforce_stock';
+const UNITS_KEY = 'beeforce_units';
+const INVOICES_KEY = 'beeforce_invoices';
 
 // Filter data based on user role
 const filterByUserAccess = <T extends { createdBy?: string; assignedTo?: string[] }>(
@@ -391,63 +291,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Initialize data
   useEffect(() => {
-    const initializeApp = async () => {
+    const initializeApp = () => {
       try {
-        const { data: existingProjects, error: projectsError } = await supabase
-          .from('projects')
-          .select('id')
-          .limit(1);
-
-        if (projectsError) {
-          setIsLoading(false);
-          return;
+        const storedUsers = localStorage.getItem(USERS_KEY);
+        let initialUsers: User[] = [];
+        if (storedUsers) {
+          initialUsers = JSON.parse(storedUsers);
+        } else {
+          // Initialize default admin
+          const defaultAdmin: User = {
+            id: generateId(),
+            name: 'Admin',
+            email: 'admin@beeforce.com',
+            username: 'admin',
+            role: 'admin',
+            permissions: ['all'],
+            createdAt: new Date().toISOString(),
+            isActive: true
+          };
+          initialUsers = [defaultAdmin];
+          localStorage.setItem(USERS_KEY, JSON.stringify(initialUsers));
         }
+        setUsers(initialUsers);
 
-        if (!existingProjects || existingProjects.length === 0) {
-          setIsLoading(false);
-          return;
-        }
+        const storedProjects = localStorage.getItem(PROJECTS_KEY);
+        if (storedProjects) setProjects(JSON.parse(storedProjects));
 
-        await loadAllData();
+        const storedTransactions = localStorage.getItem(TRANSACTIONS_KEY);
+        if (storedTransactions) setTransactions(JSON.parse(storedTransactions));
+
+        const storedClients = localStorage.getItem(CLIENTS_KEY);
+        if (storedClients) setClients(JSON.parse(storedClients));
+
+        const storedStock = localStorage.getItem(STOCK_KEY);
+        if (storedStock) setStockItems(JSON.parse(storedStock));
+
+        const storedUnits = localStorage.getItem(UNITS_KEY);
+        if (storedUnits) setUnits(JSON.parse(storedUnits));
+
+        const storedInvoices = localStorage.getItem(INVOICES_KEY);
+        if (storedInvoices) setInvoices(JSON.parse(storedInvoices));
+
         const storedUser = localStorage.getItem(CURRENT_USER_KEY);
         if (storedUser) {
           setCurrentUser(JSON.parse(storedUser));
         }
-        setIsLoading(false);
       } catch (err) {
+        console.error('Failed to load data from LocalStorage:', err);
+      } finally {
         setIsLoading(false);
       }
     };
-
     initializeApp();
   }, []);
-
-  const loadAllData = async () => {
-    try {
-      const { data: usersData } = await supabase.from('users').select('*').eq('is_active', true);
-      if (usersData) setUsers(usersData.map(convertUser));
-
-      const { data: projectsData } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
-      if (projectsData) setProjects(projectsData.map(convertProject));
-
-      const { data: transactionsData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
-      if (transactionsData) setTransactions(transactionsData.map(convertTransaction));
-
-      const { data: clientsData } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
-      if (clientsData) setClients(clientsData.map(convertClient));
-
-      const { data: stockData } = await supabase.from('stock_items').select('*').order('created_at', { ascending: false });
-      if (stockData) setStockItems(stockData.map(convertStockItem));
-
-      const { data: unitsData } = await supabase.from('units').select('*').order('created_at', { ascending: false });
-      if (unitsData) setUnits(unitsData.map(convertUnit));
-
-      const { data: invoicesData } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
-      if (invoicesData) setInvoices(invoicesData.map(convertInvoice));
-    } catch (err) {
-      console.error('Failed to load data:', err);
-    }
-  };
 
   // Auth functions
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -495,26 +391,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // User functions
   const addUser = async (user: Omit<User, 'id' | 'createdAt'>) => {
-    const { data, error } = await supabase.from('users').insert([{
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      permissions: user.permissions,
-      is_active: user.isActive,
-    }]).select().single();
-    if (error) throw error;
-    if (data) setUsers([...users, convertUser(data)]);
+    const newUser: User = {
+      ...user,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+    };
+    const newUsers = [...users, newUser];
+    setUsers(newUsers);
+    localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
   };
 
   const updateUser = async (id: string, userData: Partial<User>) => {
-    const updateData: any = {};
-    if (userData.email) updateData.email = userData.email;
-    if (userData.name) updateData.name = userData.name;
-    if (userData.role) updateData.role = userData.role;
-    if (userData.permissions) updateData.permissions = userData.permissions;
-    if (userData.isActive !== undefined) updateData.is_active = userData.isActive;
-    await supabase.from('users').update(updateData).eq('id', id);
-    setUsers(users.map(u => u.id === id ? { ...u, ...userData } : u));
+    const newUsers = users.map(u => u.id === id ? { ...u, ...userData } : u);
+    setUsers(newUsers);
+    localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
+    
     if (currentUser?.id === id) {
       const updatedUser = { ...currentUser, ...userData };
       setCurrentUser(updatedUser);
@@ -523,125 +414,118 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteUser = async (id: string) => {
-    await supabase.from('users').update({ is_active: false }).eq('id', id);
-    setUsers(users.filter(u => u.id !== id));
+    const newUsers = users.filter(u => u.id !== id);
+    setUsers(newUsers);
+    localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
   };
 
   // Project functions
   const addProject = async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const projectData = {
+    const newProject: Project = {
       ...project,
-      created_by: currentUser?.name || '',
-      assigned_to: project.assignedTo || [],
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: currentUser?.name || '',
+      assignedTo: project.assignedTo || [],
     };
-    const { data, error } = await supabase.from('projects').insert([projectData]).select().single();
-    if (error) throw error;
-    if (data) {
-      const newProject = convertProject(data);
-      setProjects([newProject, ...projects]);
-      // Notify admin
-      addNotification({
-        type: 'project',
-        title: 'مشروع جديد',
-        message: `تم إنشاء مشروع جديد: ${project.name}`,
-        isRead: false,
-      });
-    }
+    const newProjects = [newProject, ...projects];
+    setProjects(newProjects);
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects));
+    addNotification({
+      type: 'project',
+      title: 'مشروع جديد',
+      message: `تم إنشاء مشروع جديد: ${project.name}`,
+      isRead: false,
+    });
   };
 
   const updateProject = async (id: string, projectData: Partial<Project>) => {
-    const updateData: any = {};
-    if (projectData.name) updateData.name = projectData.name;
-    if (projectData.clientName) updateData.client_name = projectData.clientName;
-    if (projectData.shootDates !== undefined) updateData.shoot_dates = projectData.shootDates;
-    if (projectData.analyticalAccount !== undefined) updateData.analytical_account = projectData.analyticalAccount;
-    if (projectData.status) updateData.status = projectData.status;
-    if (projectData.hasTaxInvoice !== undefined) updateData.has_tax_invoice = projectData.hasTaxInvoice;
-    if (projectData.notes !== undefined) updateData.notes = projectData.notes;
-    if (projectData.assignedTo !== undefined) updateData.assigned_to = projectData.assignedTo;
-    updateData.updated_at = new Date().toISOString();
-    await supabase.from('projects').update(updateData).eq('id', id);
-    setProjects(projects.map(p => p.id === id ? { ...p, ...projectData, updatedAt: new Date().toISOString() } : p));
+    const newProjects = projects.map(p => p.id === id ? { ...p, ...projectData, updatedAt: new Date().toISOString() } : p);
+    setProjects(newProjects);
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects));
   };
 
   const deleteProject = async (id: string) => {
-    await supabase.from('projects').delete().eq('id', id);
-    setProjects(projects.filter(p => p.id !== id));
+    const newProjects = projects.filter(p => p.id !== id);
+    setProjects(newProjects);
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects));
   };
 
   // Transaction functions
   const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt' | 'balance'>) => {
-    const { data, error } = await supabase.from('transactions').insert([{
+    const newTransaction: Transaction = {
       ...transaction,
-      created_by: currentUser?.name || '',
-    }]).select().single();
-    if (error) throw error;
-    if (data) {
-      setTransactions([convertTransaction(data), ...transactions]);
-      addNotification({
-        type: 'transaction',
-        title: 'معاملة جديدة',
-        message: `تم إضافة معاملة: ${transaction.description}`,
-        isRead: false,
-      });
-    }
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      balance: transaction.credit ? transaction.credit : -(transaction.debit || 0),
+      createdBy: currentUser?.name || '',
+    };
+    const newTransactions = [newTransaction, ...transactions];
+    setTransactions(newTransactions);
+    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
+    addNotification({
+      type: 'transaction',
+      title: 'معاملة جديدة',
+      message: `تم إضافة معاملة: ${transaction.description}`,
+      isRead: false,
+    });
   };
 
   const updateTransaction = async (id: string, transactionData: Partial<Transaction>) => {
-    const updateData: any = {};
-    Object.keys(transactionData).forEach(key => {
-      const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      updateData[dbKey] = (transactionData as any)[key];
-    });
-    await supabase.from('transactions').update(updateData).eq('id', id);
-    setTransactions(transactions.map(t => t.id === id ? { ...t, ...transactionData } : t));
+    const newTransactions = transactions.map(t => t.id === id ? { ...t, ...transactionData } : t);
+    setTransactions(newTransactions);
+    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
   };
 
   const deleteTransaction = async (id: string) => {
-    await supabase.from('transactions').delete().eq('id', id);
-    setTransactions(transactions.filter(t => t.id !== id));
+    const newTransactions = transactions.filter(t => t.id !== id);
+    setTransactions(newTransactions);
+    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
   };
 
   // Client functions
   const addClient = async (client: Omit<Client, 'id' | 'createdAt'>) => {
-    const { data, error } = await supabase.from('clients').insert([client]).select().single();
-    if (error) throw error;
-    if (data) setClients([convertClient(data), ...clients]);
+    const newClient: Client = {
+      ...client,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+    };
+    const newClients = [newClient, ...clients];
+    setClients(newClients);
+    localStorage.setItem(CLIENTS_KEY, JSON.stringify(newClients));
   };
 
   const updateClient = async (id: string, clientData: Partial<Client>) => {
-    const updateData: any = {};
-    Object.keys(clientData).forEach(key => {
-      const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      updateData[dbKey] = (clientData as any)[key];
-    });
-    await supabase.from('clients').update(updateData).eq('id', id);
-    setClients(clients.map(c => c.id === id ? { ...c, ...clientData } : c));
+    const newClients = clients.map(c => c.id === id ? { ...c, ...clientData } : c);
+    setClients(newClients);
+    localStorage.setItem(CLIENTS_KEY, JSON.stringify(newClients));
   };
 
   const deleteClient = async (id: string) => {
-    await supabase.from('clients').delete().eq('id', id);
-    setClients(clients.filter(c => c.id !== id));
+    const newClients = clients.filter(c => c.id !== id);
+    setClients(newClients);
+    localStorage.setItem(CLIENTS_KEY, JSON.stringify(newClients));
   };
 
   // Stock functions
   const addStockItem = async (item: Omit<StockItem, 'id' | 'createdAt'>) => {
-    const { data, error } = await supabase.from('stock_items').insert([item]).select().single();
-    if (error) throw error;
-    if (data) setStockItems([convertStockItem(data), ...stockItems]);
+    const newItem: StockItem = {
+      ...item,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+    };
+    const newStock = [newItem, ...stockItems];
+    setStockItems(newStock);
+    localStorage.setItem(STOCK_KEY, JSON.stringify(newStock));
   };
 
   const updateStockItem = async (id: string, itemData: Partial<StockItem>) => {
-    const updateData: any = {};
-    Object.keys(itemData).forEach(key => {
-      const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      updateData[dbKey] = (itemData as any)[key];
-    });
-    await supabase.from('stock_items').update(updateData).eq('id', id);
-    const updated = stockItems.map(i => i.id === id ? { ...i, ...itemData } : i);
-    setStockItems(updated);
-    // Check for low stock
-    const updatedItem = updated.find(i => i.id === id);
+    const newStock = stockItems.map(i => i.id === id ? { ...i, ...itemData } : i);
+    setStockItems(newStock);
+    localStorage.setItem(STOCK_KEY, JSON.stringify(newStock));
+    
+    const updatedItem = newStock.find(i => i.id === id);
     if (updatedItem && updatedItem.quantity <= updatedItem.minQuantity) {
       addNotification({
         type: 'low_stock',
@@ -653,55 +537,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteStockItem = async (id: string) => {
-    await supabase.from('stock_items').delete().eq('id', id);
-    setStockItems(stockItems.filter(i => i.id !== id));
+    const newStock = stockItems.filter(i => i.id !== id);
+    setStockItems(newStock);
+    localStorage.setItem(STOCK_KEY, JSON.stringify(newStock));
   };
 
   // Unit functions
   const addUnit = async (unit: Omit<Unit, 'id' | 'createdAt'>) => {
-    const { data, error } = await supabase.from('units').insert([unit]).select().single();
-    if (error) throw error;
-    if (data) setUnits([convertUnit(data), ...units]);
+    const newUnit: Unit = {
+      ...unit,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+    };
+    const newUnits = [newUnit, ...units];
+    setUnits(newUnits);
+    localStorage.setItem(UNITS_KEY, JSON.stringify(newUnits));
   };
 
   const updateUnit = async (id: string, unitData: Partial<Unit>) => {
-    const updateData: any = {};
-    Object.keys(unitData).forEach(key => {
-      const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      updateData[dbKey] = (unitData as any)[key];
-    });
-    await supabase.from('units').update(updateData).eq('id', id);
-    setUnits(units.map(u => u.id === id ? { ...u, ...unitData } : u));
+    const newUnits = units.map(u => u.id === id ? { ...u, ...unitData } : u);
+    setUnits(newUnits);
+    localStorage.setItem(UNITS_KEY, JSON.stringify(newUnits));
   };
 
   const deleteUnit = async (id: string) => {
-    await supabase.from('units').delete().eq('id', id);
-    setUnits(units.filter(u => u.id !== id));
+    const newUnits = units.filter(u => u.id !== id);
+    setUnits(newUnits);
+    localStorage.setItem(UNITS_KEY, JSON.stringify(newUnits));
   };
 
   // Invoice functions
   const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt'>) => {
-    const { data, error } = await supabase.from('invoices').insert([{
+    const newInvoice: Invoice = {
       ...invoice,
-      created_by: currentUser?.name || '',
-    }]).select().single();
-    if (error) throw error;
-    if (data) setInvoices([convertInvoice(data), ...invoices]);
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser?.name || '',
+    };
+    const newInvoices = [newInvoice, ...invoices];
+    setInvoices(newInvoices);
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(newInvoices));
   };
 
   const updateInvoice = async (id: string, invoiceData: Partial<Invoice>) => {
-    const updateData: any = {};
-    Object.keys(invoiceData).forEach(key => {
-      const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      updateData[dbKey] = (invoiceData as any)[key];
-    });
-    await supabase.from('invoices').update(updateData).eq('id', id);
-    setInvoices(invoices.map(i => i.id === id ? { ...i, ...invoiceData } : i));
+    const newInvoices = invoices.map(i => i.id === id ? { ...i, ...invoiceData } : i);
+    setInvoices(newInvoices);
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(newInvoices));
   };
 
   const deleteInvoice = async (id: string) => {
-    await supabase.from('invoices').delete().eq('id', id);
-    setInvoices(invoices.filter(i => i.id !== id));
+    const newInvoices = invoices.filter(i => i.id !== id);
+    setInvoices(newInvoices);
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(newInvoices));
   };
 
   // Stats functions
