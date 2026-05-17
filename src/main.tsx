@@ -11,7 +11,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <LanguageProvider>
       <AppProvider>
         <App />
-        <Toaster position="top-center" dir="rtl" />
+        <Toaster 
+          position="top-center" 
+          dir="rtl" 
+          style={{ pointerEvents: 'none' }}
+          toastOptions={{
+            style: { pointerEvents: 'auto' }
+          }}
+        />
       </AppProvider>
     </LanguageProvider>
   </React.StrictMode>
