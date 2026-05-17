@@ -89,6 +89,15 @@ export interface InvoiceItem {
   total: number;
 }
 
+export interface ProjectComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -100,9 +109,11 @@ export interface Project {
   notes: string;
   createdBy: string;
   assignedTo: string[];
+  comments?: ProjectComment[];
   createdAt: string;
   updatedAt: string;
 }
+
 
 export type Category = 'F&B' | 'Transportation' | 'Maintenance' | 'Labors' | 'Salary' | 'Other Expenses';
 

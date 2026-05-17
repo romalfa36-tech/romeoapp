@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../lib/context';
+import { useApp, useLanguage } from '../lib/context';
 import { Card, Button, Badge, EmptyState, Input, Select, Modal } from './ui';
 import { formatCurrency, getCategoryColor, getCategoryLabel, PROJECT_STATUSES, Category } from '../lib/types';
 import {
@@ -23,6 +23,8 @@ interface ProjectsProps {
 
 export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
   const { projects, addProject, updateProject, deleteProject, transactions, currentUser } = useApp();
+  const { language } = useLanguage();
+  const txt = (ar: string, en: string) => language === 'ar' ? ar : en;
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -61,12 +63,12 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">المشاريع</h1>
-          <p className="text-gray-500">إدارة وتتبع جميع المشاريع</p>
+          <h1 className="text-2xl font-bold text-gray-900">{txt('المشاريع', 'Projects')}</h1>
+          <p className="text-gray-500">{txt('إدارة وتتبع جميع المشاريع', 'Manage and track all projects')}</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || currentUser?.role === 'employee') && (
           <Button icon={Plus} onClick={() => setShowAddModal(true)}>
-            إضافة مشروع
+            {txt('إضافة مشروع', 'Add Project')}
           </Button>
         )}
       </div>
@@ -77,7 +79,7 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="البحث عن مشروع..."
+            placeholder={txt('البحث عن مشروع...', 'Search projects...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pr-10 pl-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
@@ -88,11 +90,11 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
         >
-          <option value="all">جميع الحالات</option>
-          <option value="draft">مسودة</option>
-          <option value="in-progress">قيد التنفيذ</option>
-          <option value="paid">مدفوع</option>
-          <option value="completed">مكتمل</option>
+          <option value="all">{txt('جميع الحالات', 'All Statuses')}</option>
+          <option value="draft">{txt('مسودة', 'Draft')}</option>
+          <option value="in-progress">{txt('قيد التنفيذ', 'In Progress')}</option>
+          <option value="paid">{txt('مدفوع', 'Paid')}</option>
+          <option value="completed">{txt('مكتمل', 'Completed')}</option>
         </select>
       </div>
 
@@ -125,17 +127,17 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
                 {/* Stats */}
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-4">
                   <div className="text-center">
-                    <p className="text-xs text-gray-500">المصروفات</p>
+                    <p className="text-xs text-gray-500">{txt('المصروفات', 'Expenses')}</p>
                     <p className="font-semibold text-red-600">{formatCurrency(stats.totalExpenses)}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-gray-500">عدد المعاملات</p>
+                    <p className="text-xs text-gray-500">{txt('عدد المعاملات', 'Transactions')}</p>
                     <p className="font-semibold text-gray-900">{stats.transactionCount}</p>
                   </div>
                   <div className="text-center">
                     {project.hasTaxInvoice && (
                       <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                        فاتورة ضريبية
+                        {txt('فاتورة ضريبية', 'Tax Invoice')}
                       </span>
                     )}
                   </div>
@@ -150,27 +152,27 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
                     onClick={() => onNavigate('projectDetails', project.id)}
                     className="flex-1"
                   >
-                    التفاصيل
+                    {txt('التفاصيل', 'Details')}
                   </Button>
+                  {(isAdmin || currentUser?.role === 'employee') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Edit}
+                      onClick={() => {
+                        setEditingProject(project.id);
+                        setShowAddModal(true);
+                      }}
+                    />
+                  )}
                   {isAdmin && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Edit}
-                        onClick={() => {
-                          setEditingProject(project.id);
-                          setShowAddModal(true);
-                        }}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Trash2}
-                        onClick={() => setShowDeleteConfirm(project.id)}
-                        className="text-red-600 hover:bg-red-50"
-                      />
-                    </>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Trash2}
+                      onClick={() => setShowDeleteConfirm(project.id)}
+                      className="text-red-600 hover:bg-red-50"
+                    />
                   )}
                 </div>
               </Card>
@@ -180,12 +182,12 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
       ) : (
         <EmptyState
           icon={Building2}
-          title="لا توجد مشاريع"
-          description="ابدأ بإضافة مشروع جديد"
+          title={txt('لا توجد مشاريع', 'No Projects')}
+          description={txt('ابدأ بإضافة مشروع جديد', 'Get started by adding a new project')}
           action={
-            isAdmin && (
+            (isAdmin || currentUser?.role === 'employee') && (
               <Button icon={Plus} onClick={() => setShowAddModal(true)}>
-                إضافة مشروع
+                {txt('إضافة مشروع', 'Add Project')}
               </Button>
             )
           }

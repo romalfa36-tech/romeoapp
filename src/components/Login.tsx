@@ -37,11 +37,6 @@ export const Login: React.FC = () => {
     }
   };
 
-  // Demo accounts
-  const demoAccounts = [
-    { email: 'admin@beeforce.com', label: 'حساب المدير' },
-    { email: 'elie@beeforce.com', label: 'حساب الموظف' },
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1E3A5F] to-[#2D7D46] flex items-center justify-center p-4">
@@ -103,7 +98,7 @@ export const Login: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent"
-                    placeholder="admin@beeforce.com"
+                    placeholder="name@company.com"
                     required
                   />
                 </div>
@@ -118,7 +113,7 @@ export const Login: React.FC = () => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent"
-                    placeholder="admin"
+                    placeholder="username"
                     required
                   />
                 </div>
@@ -145,29 +140,6 @@ export const Login: React.FC = () => {
             </Button>
           </form>
 
-          {/* Demo Accounts */}
-          <div className="mt-6 pt-6 border-t">
-            <p className="text-sm text-gray-500 text-center mb-3">حسابات تجريبية للاختبار</p>
-            <div className="space-y-2">
-              {demoAccounts.map((account) => (
-                <button
-                  key={account.email}
-                  type="button"
-                  onClick={() => {
-                    setEmail(account.email);
-                    setLoginMethod('email');
-                    setPassword('demo123');
-                  }}
-                  className="w-full p-3 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg text-right transition-colors"
-                >
-                  {account.label}: {account.email}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-gray-400 text-center mt-3">
-              (كلمة المرور: demo123)
-            </p>
-          </div>
         </Card>
 
         {/* Footer */}

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Project, Transaction, Client, StockItem, Unit, Invoice, Notification, generateId } from './types';
+import { User, Project, Transaction, Client, StockItem, Unit, Invoice, Notification, ProjectComment, generateId } from './types';
 import { supabase } from './supabase';
+import { toast } from 'sonner';
 
 // Supported languages
 export type Language = 'ar' | 'en';
@@ -187,6 +188,7 @@ interface AppContextType {
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateProject: (id: string, project: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
+  addProjectComment: (projectId: string, content: string) => Promise<void>;
 
   // Transactions
   transactions: Transaction[];
@@ -276,6 +278,7 @@ const convertProject = (data: any): Project => ({
   notes: data.notes || '',
   createdBy: data.created_by || '',
   assignedTo: data.assigned_to || [],
+  comments: data.comments || [],
   createdAt: data.created_at || new Date().toISOString(),
   updatedAt: data.updated_at || new Date().toISOString(),
 });
@@ -369,6 +372,7 @@ const projectToDB = (p: any) => ({
   notes: p.notes,
   created_by: p.createdBy,
   assigned_to: p.assignedTo,
+  comments: p.comments || [],
 });
 
 const transactionToDB = (t: any) => ({
@@ -477,9 +481,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const isAccountant = currentUser?.role === 'accountant';
   const canViewFinance = isAdmin || isAccountant;
 
-  // Filtered data based on role
-  const filteredProjects = filterByUserAccess(projects, currentUser?.id || '', isAdmin, isAccountant);
-  const filteredTransactions = filterByUserAccess(transactions, currentUser?.id || '', isAdmin, isAccountant);
+  // Filtered data based on role - Employees now see all projects and transactions
+  const filteredProjects = projects;
+  const filteredTransactions = transactions;
   const filteredInvoices = filterByUserAccess(invoices, currentUser?.id || '', isAdmin, isAccountant);
   const lowStockItems = stockItems.filter(item => item.quantity <= item.minQuantity);
 
@@ -634,6 +638,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString(),
     };
     setNotifications(prev => [newNotification, ...prev]);
+    toast(newNotification.title, {
+      description: newNotification.message,
+      duration: 5000,
+    });
   };
 
   const markAsRead = (id: string) => {
@@ -766,6 +774,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await supabase.from('projects').delete().eq('id', id);
     } catch (err) {
       console.error('Supabase deleteProject error:', err);
+    }
+  };
+
+  const addProjectComment = async (projectId: string, content: string) => {
+    if (!currentUser) return;
+    const newComment: ProjectComment = {
+      id: generateId(),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userRole: currentUser.role === 'admin' ? 'مدير' : currentUser.role === 'accountant' ? 'محاسب' : 'موظف',
+      content,
+      createdAt: new Date().toISOString(),
+    };
+
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const updatedComments = [...(project.comments || []), newComment];
+    const updatedProject = { ...project, comments: updatedComments };
+
+    const newProjects = projects.map(p => p.id === projectId ? updatedProject : p);
+    setProjects(newProjects);
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects));
+
+    // Notify other users
+    addNotification({
+      type: 'project',
+      title: 'تعليق جديد',
+      message: `أضاف ${currentUser.name} تعليقاً على مشروع ${project.name}`,
+      isRead: false,
+    });
+
+    try {
+      await supabase.from('projects').update({
+        comments: updatedComments
+      }).eq('id', projectId);
+    } catch (err) {
+      console.error('Supabase addProjectComment error:', err);
     }
   };
 
@@ -1119,6 +1165,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addProject,
     updateProject,
     deleteProject,
+    addProjectComment,
     transactions: filteredTransactions,
     filteredTransactions,
     addTransaction,
