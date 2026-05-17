@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const { currentUser, isAuthenticated, logout, notifications, markAsRead, canViewFinance } = useApp();
+  const { currentUser, isAuthenticated, logout, notifications, markAsRead, canViewFinance, toasts, removeToast } = useApp();
   const { language, setLanguage, t } = useLanguage();
   const [currentPage, setCurrentPage] = useState('Dashboard');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -252,6 +252,31 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
       <Navigation />
+
+      {/* Custom click-safe Toasts overlay */}
+      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 w-full max-w-md pointer-events-none px-4">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className="bg-white/95 backdrop-blur-md border border-gray-100 rounded-xl shadow-xl p-4 pointer-events-auto flex items-start gap-3 fade-in border-r-4 border-r-[#1E3A5F] max-w-md w-full"
+            style={{ direction: 'rtl' }}
+          >
+            <div className="w-8 h-8 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center text-[#1E3A5F] flex-shrink-0">
+              <Bell className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0 text-right">
+              <p className="font-semibold text-gray-900 text-sm leading-tight">{t.title}</p>
+              {t.message && <p className="text-xs text-gray-500 mt-1 leading-snug">{t.message}</p>}
+            </div>
+            <button
+              onClick={() => removeToast(t.id)}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded-lg hover:bg-gray-100"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
 
       {/* Main Content - add mr-64 on desktop to avoid sidebar overlap */}
       <main className="md:mr-64 pb-20 md:pb-0">

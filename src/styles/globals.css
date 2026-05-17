@@ -123,11 +123,3 @@ body {
 [dir="rtl"] {
   text-align: right;
 }
-
-/* Fix Sonner Toaster click-blocking issue in RTL/Electron */
-[data-sonner-toaster] {
-  pointer-events: none !important;
-}
-[data-sonner-toaster] [data-sonner-toast] {
-  pointer-events: auto !important;
-}

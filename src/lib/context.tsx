@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Project, Transaction, Client, StockItem, Unit, Invoice, Notification, ProjectComment, generateId } from './types';
 import { supabase } from './supabase';
-import { toast } from 'sonner';
 
 // Supported languages
 export type Language = 'ar' | 'en';
@@ -239,6 +238,8 @@ interface AppContextType {
   isAdmin: boolean;
   isAccountant: boolean;
   canViewFinance: boolean;
+  toasts: Array<{ id: string; title: string; message?: string }>;
+  removeToast: (id: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -476,6 +477,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [toasts, setToasts] = useState<Array<{ id: string; title: string; message?: string }>>([]);
+
+  const triggerToast = (title: string, message?: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, title, message }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   const isAdmin = currentUser?.role === 'admin';
   const isAccountant = currentUser?.role === 'accountant';
@@ -745,10 +759,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString(),
     };
     setNotifications(prev => [newNotification, ...prev]);
-    toast(newNotification.title, {
-      description: newNotification.message,
-      duration: 5000,
-    });
+    triggerToast(newNotification.title, newNotification.message);
   };
 
   const markAsRead = (id: string) => {
@@ -1307,6 +1318,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isAdmin,
     isAccountant,
     canViewFinance,
+    toasts,
+    removeToast,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
