@@ -347,7 +347,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Auth functions
   const login = async (email: string, password: string): Promise<boolean> => {
-    const user = users.find(u => u.email === email && u.isActive);
+    const user = users.find(u => u.email === email && u.isActive && (!u.password || u.password === password));
     if (user) {
       setCurrentUser(user);
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
@@ -357,7 +357,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const loginWithUsername = async (username: string, password: string): Promise<boolean> => {
-    const user = users.find(u => (u.username === username || u.email === username) && u.isActive);
+    const user = users.find(u => (u.username === username || u.email === username) && u.isActive && (!u.password || u.password === password));
     if (user) {
       setCurrentUser(user);
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));

@@ -17,7 +17,7 @@ import {
 interface ReportsProps {}
 
 export const Reports: React.FC<ReportsProps> = () => {
-  const { transactions, projects, getFinancialStats, getMonthlySummary } = useApp();
+  const { transactions, projects, users, clients, getFinancialStats, getMonthlySummary } = useApp();
   const [selectedReport, setSelectedReport] = useState('summary');
 
   const stats = getFinancialStats();
@@ -42,6 +42,17 @@ export const Reports: React.FC<ReportsProps> = () => {
   // Tax invoices
   const taxInvoices = transactions.filter(t => t.hasTaxInvoice);
   const totalTaxExpenses = taxInvoices.reduce((sum, t) => sum + (t.debit || 0), 0);
+
+  // Helper to escape CSV fields
+  const escapeCSV = (val: any) => {
+    if (val === null || val === undefined) return '';
+    let str = String(val);
+    str = str.replace(/"/g, '""');
+    if (str.includes(',') || str.includes('\n') || str.includes('\r') || str.includes('"')) {
+      return `"${str}"`;
+    }
+    return str;
+  };
 
   // Export reports
   const exportReport = (type: string) => {
@@ -75,6 +86,103 @@ export const Reports: React.FC<ReportsProps> = () => {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${filename}_${new Date().toISOString().split('T')[0]}.txt`;
+    link.click();
+  };
+
+  // 1. تقرير مالي CSV (طلبات + مصروفات + صافي ربح)
+  const exportFinancialCSV = () => {
+    const csvRows: string[][] = [];
+
+    // Header
+    csvRows.push(['--- تقرير الأداء المالي الشامل للطلبات والمصروفات ---']);
+    csvRows.push([]);
+
+    // 1. Projects Section
+    csvRows.push(['1. قائمة الطلبات والمشاريع']);
+    csvRows.push(['اسم المشروع', 'العميل', 'المصروفات', 'الإيرادات', 'صافي الربح', 'الحالة']);
+    projects.forEach(p => {
+      const pTrans = transactions.filter(t => t.projectId === p.id || t.projectName === p.name);
+      const expenses = pTrans.reduce((sum, t) => sum + (t.debit || 0), 0);
+      const income = pTrans.reduce((sum, t) => sum + (t.credit || 0), 0);
+      const net = income - expenses;
+      const statusLabel = p.status === 'paid' ? 'مدفوع' : p.status === 'completed' ? 'مكتمل' : p.status === 'in-progress' ? 'قيد التنفيذ' : 'مسودة';
+      csvRows.push([p.name, p.clientName, String(expenses), String(income), String(net), statusLabel]);
+    });
+    csvRows.push([]);
+
+    // 2. Expenses Section
+    csvRows.push(['2. قائمة تفاصيل المصروفات']);
+    csvRows.push(['التاريخ', 'المورد/الجهة', 'الوصف', 'الفئة', 'المشروع المرتبط', 'المبلغ (ر.س)']);
+    transactions.filter(t => t.debit > 0).forEach(t => {
+      csvRows.push([
+        t.date,
+        t.supplierName,
+        t.description,
+        getCategoryLabel(t.category),
+        t.projectName || 'عام',
+        String(t.debit)
+      ]);
+    });
+    csvRows.push([]);
+
+    // 3. Summary Section
+    csvRows.push(['3. الخلاصة والربحية']);
+    csvRows.push(['إجمالي الإيرادات', 'إجمالي المصروفات', 'صافي الربح', 'هامش الربح %']);
+    const totalRev = transactions.reduce((s, t) => s + (t.credit || 0), 0);
+    const totalExp = transactions.reduce((s, t) => s + (t.debit || 0), 0);
+    const netProfit = totalRev - totalExp;
+    const profitMargin = totalRev > 0 ? ((netProfit / totalRev) * 100).toFixed(2) : '0.00';
+    csvRows.push([String(totalRev), String(totalExp), String(netProfit), `${profitMargin}%`]);
+
+    // Format & Download
+    const csvContent = '\uFEFF' + csvRows.map(row => row.map(escapeCSV).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `beeforce_financial_report_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  // 2. تقرير شامل CSV (طلبات + عملاء + فريق)
+  const exportComprehensiveCSV = () => {
+    const csvRows: string[][] = [];
+
+    // Header
+    csvRows.push(['--- تقرير النظام الشامل (المشاريع والعملاء وفريق العمل) ---']);
+    csvRows.push([]);
+
+    // 1. Projects Section
+    csvRows.push(['1. قائمة المشاريع والطلبات']);
+    csvRows.push(['اسم المشروع', 'العميل', 'تاريخ التصوير', 'الحساب التحليلي', 'الحالة', 'ملاحظات']);
+    projects.forEach(p => {
+      const statusLabel = p.status === 'paid' ? 'مدفوع' : p.status === 'completed' ? 'مكتمل' : p.status === 'in-progress' ? 'قيد التنفيذ' : 'مسودة';
+      csvRows.push([p.name, p.clientName, p.shootDates, p.analyticalAccount, statusLabel, p.notes || '']);
+    });
+    csvRows.push([]);
+
+    // 2. Clients Section
+    csvRows.push(['2. قائمة العملاء']);
+    csvRows.push(['الاسم', 'البريد الإلكتروني', 'الهاتف', 'الشركة/الجهة', 'العنوان', 'ملاحظات']);
+    clients.forEach(c => {
+      csvRows.push([c.name, c.email, c.phone, c.company, c.address, c.notes || '']);
+    });
+    csvRows.push([]);
+
+    // 3. Team Section
+    csvRows.push(['3. قائمة فريق العمل والموظفين']);
+    csvRows.push(['الاسم', 'البريد الإلكتروني', 'اسم المستخدم', 'الدور', 'الحالة']);
+    users.forEach(u => {
+      const roleLabel = u.role === 'admin' ? '👑 مدير' : u.role === 'accountant' ? '📊 محاسب' : '👤 موظف';
+      const activeLabel = u.isActive ? 'نشط' : 'غير نشط';
+      csvRows.push([u.name, u.email, u.username || '', roleLabel, activeLabel]);
+    });
+
+    // Format & Download
+    const csvContent = '\uFEFF' + csvRows.map(row => row.map(escapeCSV).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `beeforce_system_comprehensive_report_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
@@ -322,39 +430,55 @@ export const Reports: React.FC<ReportsProps> = () => {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* CSV 1 */}
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-2 border-emerald-200 bg-emerald-50/50" onClick={exportFinancialCSV}>
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-emerald-600 rounded-xl text-white">
+              <Download className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-bold text-emerald-800">التقرير المالي الشامل CSV</p>
+              <p className="text-xs text-emerald-600 mt-1">طلبات + مصروفات + صافي ربح</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* CSV 2 */}
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow border-2 border-blue-200 bg-blue-50/50" onClick={exportComprehensiveCSV}>
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-600 rounded-xl text-white">
+              <Download className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-bold text-blue-800">التقرير الشامل للنظام CSV</p>
+              <p className="text-xs text-blue-600 mt-1">طلبات + عملاء + فريق عمل</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* TXT Summary */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => exportReport('summary')}>
           <div className="flex items-center gap-4">
             <div className="p-3 bg-[#1E3A5F]/10 rounded-xl">
               <BarChart3 className="w-6 h-6 text-[#1E3A5F]" />
             </div>
             <div>
-              <p className="font-medium text-gray-900">تصدير الملخص المالي</p>
-              <p className="text-sm text-gray-500">تقرير شامل بصيغة نصية</p>
+              <p className="font-medium text-gray-900">الملخص المالي TXT</p>
+              <p className="text-xs text-gray-500 mt-1">تقرير ملخص سريع</p>
             </div>
           </div>
         </Card>
 
+        {/* Category Breakdown */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => exportReport('category')}>
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <PieChart className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-purple-100 rounded-xl">
+              <PieChart className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="font-medium text-gray-900">تصدير breakdown الفئات</p>
-              <p className="text-sm text-gray-500">تفاصيل المصروفات حسب الفئة</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => exportReport('project')}>
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-amber-100 rounded-xl">
-              <Building2 className="w-6 h-6 text-amber-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">تصدير تكاليف المشاريع</p>
-              <p className="text-sm text-gray-500">تقرير تفصيلي لكل مشروع</p>
+              <p className="font-medium text-gray-900">المصروفات بالفئة TXT</p>
+              <p className="text-xs text-gray-500 mt-1">التوزيع والتفكيك</p>
             </div>
           </div>
         </Card>

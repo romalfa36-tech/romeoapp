@@ -38,6 +38,8 @@ export const App: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  
+  const isAdmin = currentUser?.role === 'admin';
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -50,6 +52,7 @@ export const App: React.FC = () => {
     { id: 'Projects', label: t('nav.projects'), icon: Building2 },
     ...(canViewFinance ? [{ id: 'Finance', label: t('nav.finance'), icon: DollarSign }] : []),
     { id: 'Transactions', label: t('nav.transactions'), icon: Receipt },
+    ...(isAdmin ? [] : canViewFinance ? [{ id: 'Reports', label: t('nav.reports'), icon: FileText }] : []),
   ];
 
   const adminNavItems = [
@@ -84,8 +87,6 @@ export const App: React.FC = () => {
   if (!isAuthenticated) {
     return <Login />;
   }
-
-  const isAdmin = currentUser?.role === 'admin';
 
   const Navigation = () => (
     <>
@@ -231,7 +232,7 @@ export const App: React.FC = () => {
       case 'Transactions':
         return <Transactions onNavigate={handleNavigate} />;
       case 'Reports':
-        return isAdmin ? <Reports /> : <Dashboard onNavigate={handleNavigate} />;
+        return (isAdmin || canViewFinance) ? <Reports /> : <Dashboard onNavigate={handleNavigate} />;
       case 'Clients':
         return isAdmin ? <Clients /> : <Dashboard onNavigate={handleNavigate} />;
       case 'Stock':
@@ -252,8 +253,8 @@ export const App: React.FC = () => {
       {/* Navigation */}
       <Navigation />
 
-      {/* Main Content */}
-      <main className="md:mr-0 pb-20 md:pb-0">
+      {/* Main Content - add mr-64 on desktop to avoid sidebar overlap */}
+      <main className="md:mr-64 pb-20 md:pb-0">
         {/* Top Header (Mobile) */}
         <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">

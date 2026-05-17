@@ -80,6 +80,7 @@ export const UsersManagement: React.FC<UsersManagementProps> = () => {
         >
           <option value="all">جميع الأدوار</option>
           <option value="admin">مدير</option>
+          <option value="accountant">محاسب</option>
           <option value="employee">موظف</option>
         </select>
       </div>
@@ -89,7 +90,7 @@ export const UsersManagement: React.FC<UsersManagementProps> = () => {
         <Card className="text-center">
           <Users className="w-6 h-6 text-[#1E3A5F] mx-auto mb-2" />
           <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-          <p className="text-sm text-gray-500">إجمالي الموظفين</p>
+          <p className="text-sm text-gray-500">إجمالي الأعضاء</p>
         </Card>
         <Card className="text-center">
           <Shield className="w-6 h-6 text-purple-600 mx-auto mb-2" />
@@ -137,9 +138,16 @@ export const UsersManagement: React.FC<UsersManagementProps> = () => {
                   </div>
 
                   {/* Role Badge */}
-                  <Badge variant={user.role === 'admin' ? 'info' : 'default'}>
-                    {user.role === 'admin' ? 'مدير' : 'موظف'}
-                  </Badge>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={user.role === 'admin' ? 'info' : user.role === 'accountant' ? 'warning' : 'default'}>
+                      {user.role === 'admin' ? '👑 مدير' : user.role === 'accountant' ? '📊 محاسب' : '👤 موظف'}
+                    </Badge>
+                    {user.username && (
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-mono">
+                        @{user.username}
+                      </span>
+                    )}
+                  </div>
 
                   {/* Permissions */}
                   {user.role === 'employee' && (
@@ -373,8 +381,9 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSave, pe
             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
             className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
           >
-            <option value="employee">موظف</option>
-            <option value="admin">مدير</option>
+            <option value="employee">👤 موظف</option>
+            <option value="accountant">📊 محاسب (يرى جميع المعاملات المالية)</option>
+            <option value="admin">👑 مدير (صلاحيات كاملة)</option>
           </select>
         </div>
 

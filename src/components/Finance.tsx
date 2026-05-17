@@ -1,667 +1,443 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../lib/context';
-import { Card, Badge, EmptyState, Modal, Button } from './ui';
-import { Invoice, InvoiceStatus, INVOICE_STATUSES, InvoiceItem } from '../lib/types';
-import { formatCurrency } from '../lib/types';
+import { Card, Button, Modal } from './ui';
+import { Transaction, CATEGORIES, Category, formatCurrency, getCategoryColor, getCategoryLabel } from '../lib/types';
 import {
-  Plus, Search, Edit, Trash2, FileText, Upload, Check, X, Eye,
-  Clock, AlertCircle, CheckCircle, DollarSign, Receipt, FileUp
+  Plus, Trash2, TrendingUp, TrendingDown, DollarSign,
+  Download, BarChart3, Receipt, Filter, Search, AlertCircle
 } from 'lucide-react';
 
 export const Finance: React.FC = () => {
-  const { invoices, addInvoice, updateInvoice, deleteInvoice, projects, clients, currentUser } = useApp();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [showModal, setShowModal] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
-  const [selectedInvoiceForUpload, setSelectedInvoiceForUpload] = useState<Invoice | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [formData, setFormData] = useState({
-    invoiceNumber: '',
-    type: 'invoice' as 'invoice' | 'quote',
+  const {
+    transactions, addTransaction, deleteTransaction,
+    projects, currentUser
+  } = useApp();
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'expenses'>('overview');
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const [expenseForm, setExpenseForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    supplierName: '',
+    description: '',
+    category: 'F&B' as Category,
+    debit: 0,
     projectId: '',
     projectName: '',
-    clientName: '',
-    amount: 0,
-    vatAmount: 0,
-    totalAmount: 0,
-    status: 'draft' as InvoiceStatus,
-    dueDate: '',
-    items: [] as InvoiceItem[],
-    attachments: [] as string[],
+    no: '',
+    hasTaxInvoice: false,
     notes: '',
   });
-  const [attachment, setAttachment] = useState<string>('');
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.permissions.includes('review_invoices');
+  // ── حسابات KPI ──────────────────────────────────────────────
+  const totalRevenue = transactions.reduce((s, t) => s + (t.credit || 0), 0);
+  const totalExpenses = transactions.reduce((s, t) => s + (t.debit || 0), 0);
+  const netProfit = totalRevenue - totalExpenses;
+  const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0.0';
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch =
-      invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.clientName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-    const matchesType = typeFilter === 'all' || invoice.type === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+  // تفكيك المصروفات حسب الفئة
+  const expenseByCategory = CATEGORIES.map(cat => ({
+    category: cat,
+    label: getCategoryLabel(cat),
+    color: getCategoryColor(cat),
+    amount: transactions.filter(t => t.category === cat).reduce((s, t) => s + (t.debit || 0), 0),
+  })).filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount);
+
+  // الإيرادات المحصّلة (معاملات لديها credit)
+  const collectedRevenue = transactions.filter(t => t.credit > 0).reduce((s, t) => s + t.credit, 0);
+
+  // ── فلترة المصروفات ──────────────────────────────────────────
+  const allExpenses = transactions.filter(t => t.debit > 0);
+  const filteredExpenses = allExpenses.filter(t => {
+    const matchSearch = t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.supplierName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchCat = categoryFilter === 'all' || t.category === categoryFilter;
+    return matchSearch && matchCat;
   });
 
-  const getStatusBadge = (status: InvoiceStatus) => {
-    const statusConfig = INVOICE_STATUSES.find(s => s.value === status);
-    return <Badge className={statusConfig?.color}>{statusConfig?.label}</Badge>;
-  };
-
-  const handleProjectChange = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    if (project) {
-      setFormData({
-        ...formData,
-        projectId,
-        projectName: project.name,
-        clientName: project.clientName,
-      });
-    }
-  };
-
-  const calculateTotals = () => {
-    const subtotal = formData.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-    const vat = subtotal * 0.15; // 15% VAT
-    const total = subtotal + vat;
-    setFormData({
-      ...formData,
-      amount: subtotal,
-      vatAmount: vat,
-      totalAmount: total,
-    });
-  };
-
-  const addItem = () => {
-    setFormData({
-      ...formData,
-      items: [...formData.items, { description: '', quantity: 1, unitPrice: 0, total: 0 }]
-    });
-  };
-
-  const updateItem = (index: number, field: string, value: any) => {
-    const newItems = [...formData.items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    newItems[index].total = newItems[index].quantity * newItems[index].unitPrice;
-    setFormData({ ...formData, items: newItems });
-    calculateTotals();
-  };
-
-  const removeItem = (index: number) => {
-    const newItems = formData.items.filter((_, i) => i !== index);
-    setFormData({ ...formData, items: newItems });
-    calculateTotals();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ── إضافة مصروف ─────────────────────────────────────────────
+  const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const invoiceData = {
-        ...formData,
-        createdBy: currentUser?.name || '',
-        attachments: formData.attachments || [],
-      };
-      if (editingInvoice) {
-        await updateInvoice(editingInvoice.id, invoiceData);
-      } else {
-        await addInvoice(invoiceData);
-      }
-      resetForm();
-    } catch (error) {
-      console.error('Failed to save invoice:', error);
-    }
-  };
-
-  const handleEdit = (invoice: Invoice) => {
-    setEditingInvoice(invoice);
-    setFormData({
-      invoiceNumber: invoice.invoiceNumber,
-      type: invoice.type,
-      projectId: invoice.projectId,
-      projectName: invoice.projectName,
-      clientName: invoice.clientName,
-      amount: invoice.amount,
-      vatAmount: invoice.vatAmount,
-      totalAmount: invoice.totalAmount,
-      status: invoice.status,
-      dueDate: invoice.dueDate,
-      items: invoice.items,
-      attachments: invoice.attachments,
-      notes: invoice.notes,
+    await addTransaction({
+      ...expenseForm,
+      credit: 0,
+      no: expenseForm.no || `EXP-${Date.now()}`,
+      projectId: expenseForm.projectId || '',
+      projectName: expenseForm.projectName || '',
+      createdBy: currentUser?.name || 'محاسب',
     });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm('هل أنت متأكد من حذف هذا المستند؟')) {
-      await deleteInvoice(id);
-    }
-  };
-
-  const handleStatusChange = async (id: string, newStatus: InvoiceStatus) => {
-    await updateInvoice(id, {
-      status: newStatus,
-      reviewedBy: currentUser?.name,
-      reviewedAt: new Date().toISOString(),
-    });
-  };
-
-  const handleUpload = (invoice: Invoice) => {
-    setSelectedInvoiceForUpload(invoice);
-    setShowUploadModal(true);
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // In production, you would upload to a storage service
-      // For now, we'll store the file name as a placeholder
-      const fileUrl = URL.createObjectURL(file);
-      setAttachment(fileUrl);
-    }
-  };
-
-  const saveAttachment = async () => {
-    if (selectedInvoiceForUpload && attachment) {
-      const updatedAttachments = [...selectedInvoiceForUpload.attachments, attachment];
-      await updateInvoice(selectedInvoiceForUpload.id, {
-        attachments: updatedAttachments,
-      });
-      setShowUploadModal(false);
-      setAttachment('');
-      setSelectedInvoiceForUpload(null);
-    }
-  };
-
-  const resetForm = () => {
-    setShowModal(false);
-    setEditingInvoice(null);
-    setFormData({
-      invoiceNumber: '',
-      type: 'invoice',
+    setShowExpenseModal(false);
+    setExpenseForm({
+      date: new Date().toISOString().split('T')[0],
+      supplierName: '',
+      description: '',
+      category: 'F&B',
+      debit: 0,
       projectId: '',
       projectName: '',
-      clientName: '',
-      amount: 0,
-      vatAmount: 0,
-      totalAmount: 0,
-      status: 'draft',
-      dueDate: '',
-      items: [],
-      attachments: [],
+      no: '',
+      hasTaxInvoice: false,
       notes: '',
     });
   };
 
-  // Get pending invoices count for accounting review
-  const pendingCount = invoices.filter(i => i.status === 'pending').length;
+  // ── تصدير CSV المالي ─────────────────────────────────────────
+  const exportFinancialCSV = () => {
+    const rows = [
+      ['التاريخ', 'المورد', 'الوصف', 'الفئة', 'مدين (مصروف)', 'دائن (إيراد)', 'المشروع'],
+      ...transactions.map(t => [
+        t.date, t.supplierName, t.description, getCategoryLabel(t.category as Category),
+        t.debit || 0, t.credit || 0, t.projectName,
+      ]),
+      [],
+      ['', '', '', 'إجمالي الإيرادات', '', totalRevenue, ''],
+      ['', '', '', 'إجمالي المصروفات', totalExpenses, '', ''],
+      ['', '', '', 'صافي الربح', netProfit, '', ''],
+      ['', '', '', 'هامش الربح %', `${profitMargin}%`, '', ''],
+    ];
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `beeforce-financial-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6 fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">المالية</h1>
-          <p className="text-gray-500">إدارة الفواتير وعروض الأسعار</p>
+          <p className="text-gray-500">لوحة الحسابات والتقارير المالية</p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          إنشاء مستند
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="secondary" onClick={exportFinancialCSV} icon={Download}>
+            تصدير CSV
+          </Button>
+          <Button onClick={() => setShowExpenseModal(true)} icon={Plus}>
+            + مصروف
+          </Button>
+        </div>
       </div>
 
-      {/* Pending Review Alert */}
-      {isAdmin && pendingCount > 0 && (
-        <Card className="bg-blue-50 border-blue-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-blue-600" />
-              <div>
-                <h3 className="font-semibold text-blue-800">المستندات تنتظر المراجعة</h3>
-                <p className="text-sm text-blue-600">
-                  يوجد {pendingCount} مستند في انتظار مراجعة المحاسبة
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" onClick={() => setStatusFilter('pending')}>
-              عرض الكل
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {/* Stats Cards */}
+      {/* ── KPI Cards ────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gray-100 rounded-xl">
-              <FileText className="w-5 h-5 text-gray-600" />
+        {/* إجمالي الإيرادات */}
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-green-600" />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">إجمالي المستندات</p>
-              <p className="text-xl font-bold text-gray-900">{invoices.length}</p>
-            </div>
+            <span className="text-sm font-medium text-green-700">إجمالي الإيرادات</span>
           </div>
+          <p className="text-2xl font-bold text-green-700">{formatCurrency(totalRevenue)}</p>
+          <p className="text-xs text-green-600 mt-1">محصّل: {formatCurrency(collectedRevenue)}</p>
         </Card>
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-amber-100 rounded-xl">
-              <Clock className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">في الانتظار</p>
-              <p className="text-xl font-bold text-amber-600">{pendingCount}</p>
-            </div>
-          </div>
-        </Card>
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">approved</p>
-              <p className="text-xl font-bold text-green-600">
-                {invoices.filter(i => i.status === 'approved').length}
-              </p>
-            </div>
-          </div>
-        </Card>
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <DollarSign className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">المدفوع</p>
-              <p className="text-xl font-bold text-blue-600">
-                {formatCurrency(invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.totalAmount, 0))}
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
 
-      {/* Filters */}
-      <Card>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="البحث في المستندات..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+        {/* إجمالي المصروفات */}
+        <Card className="bg-gradient-to-br from-red-50 to-rose-50 border-red-200">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <TrendingDown className="w-5 h-5 text-red-600" />
+            </div>
+            <span className="text-sm font-medium text-red-700">إجمالي المصروفات</span>
+          </div>
+          <p className="text-2xl font-bold text-red-700">{formatCurrency(totalExpenses)}</p>
+          <p className="text-xs text-red-600 mt-1">{allExpenses.length} بند مصروف</p>
+        </Card>
+
+        {/* صافي الربح */}
+        <Card className={`bg-gradient-to-br border ${netProfit >= 0 ? 'from-blue-50 to-indigo-50 border-blue-200' : 'from-orange-50 to-red-50 border-orange-200'}`}>
+          <div className="flex items-center gap-3 mb-2">
+            <div className={`p-2 rounded-lg ${netProfit >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
+              <DollarSign className={`w-5 h-5 ${netProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
+            </div>
+            <span className={`text-sm font-medium ${netProfit >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>صافي الربح</span>
+          </div>
+          <p className={`text-2xl font-bold ${netProfit >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
+            {formatCurrency(Math.abs(netProfit))}
+          </p>
+          {netProfit < 0 && <p className="text-xs text-orange-600 mt-1">⚠️ خسارة</p>}
+        </Card>
+
+        {/* هامش الربح */}
+        <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <BarChart3 className="w-5 h-5 text-purple-600" />
+            </div>
+            <span className="text-sm font-medium text-purple-700">هامش الربح</span>
+          </div>
+          <p className="text-2xl font-bold text-purple-700">{profitMargin}%</p>
+          <div className="mt-2 h-1.5 bg-purple-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-purple-500 rounded-full transition-all"
+              style={{ width: `${Math.min(Math.max(parseFloat(profitMargin), 0), 100)}%` }}
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none"
-            >
-              <option value="all">الكل الأنواع</option>
-              <option value="invoice">فواتير</option>
-              <option value="quote">عروض أسعار</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none"
-            >
-              <option value="all">الكل الحالات</option>
-              <option value="draft">مسودة</option>
-              <option value="pending">في الانتظار</option>
-              <option value="approved">موافق عليه</option>
-              <option value="rejected">مرفوض</option>
-              <option value="paid">مدفوع</option>
-            </select>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      </div>
 
-      {/* Invoices List */}
-      {filteredInvoices.length > 0 ? (
+      {/* ── Tabs ─────────────────────────────────────────────── */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'overview' ? 'border-[#1E3A5F] text-[#1E3A5F]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          📊 تفكيك المصروفات
+        </button>
+        <button
+          onClick={() => setActiveTab('expenses')}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'expenses' ? 'border-[#1E3A5F] text-[#1E3A5F]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          📋 قائمة المصروفات ({allExpenses.length})
+        </button>
+      </div>
+
+      {/* ── Tab: تفكيك المصروفات بصري ────────────────────────── */}
+      {activeTab === 'overview' && (
         <div className="space-y-4">
-          {filteredInvoices.map((invoice) => (
-            <Card key={invoice.id} className="hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${invoice.type === 'invoice' ? 'bg-blue-100' : 'bg-purple-100'}`}>
-                    {invoice.type === 'invoice' ? (
-                      <Receipt className="w-6 h-6 text-blue-600" />
-                    ) : (
-                      <FileText className="w-6 h-6 text-purple-600" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-900">{invoice.invoiceNumber}</h3>
-                      <Badge variant={invoice.type === 'invoice' ? 'info' : 'success'}>
-                        {invoice.type === 'invoice' ? 'فاتورة' : 'عرض سعر'}
-                      </Badge>
-                      {getStatusBadge(invoice.status)}
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {invoice.projectName} | {invoice.clientName}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="text-left">
-                    <p className="text-sm text-gray-500">المبلغ الإجمالي</p>
-                    <p className="text-xl font-bold text-gray-900">{formatCurrency(invoice.totalAmount)}</p>
-                    <p className="text-xs text-gray-400">
-                      شامل الضريبة: {formatCurrency(invoice.vatAmount)}
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    {invoice.attachments.length > 0 && (
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-sm">
-                        {invoice.attachments.length} مرفق
-                      </span>
-                    )}
-                    <button
-                      onClick={() => handleUpload(invoice)}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
-                      title="رفع مرفق"
-                    >
-                      <FileUp className="w-4 h-4 text-gray-500" />
-                    </button>
-                    <button
-                      onClick={() => handleEdit(invoice)}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
-                    >
-                      <Edit className="w-4 h-4 text-gray-500" />
-                    </button>
-                    {invoice.status === 'pending' && isAdmin && (
-                      <>
-                        <button
-                          onClick={() => handleStatusChange(invoice.id, 'approved')}
-                          className="p-2 hover:bg-green-50 rounded-lg"
-                          title="موافقة"
-                        >
-                          <Check className="w-4 h-4 text-green-600" />
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(invoice.id, 'rejected')}
-                          className="p-2 hover:bg-red-50 rounded-lg"
-                          title="رفض"
-                        >
-                          <X className="w-4 h-4 text-red-600" />
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => handleDelete(invoice.id)}
-                      className="p-2 hover:bg-red-50 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Invoice Items Preview */}
-              {invoice.items.length > 0 && (
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm text-gray-500 mb-2">البنود:</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    {invoice.items.slice(0, 3).map((item, idx) => (
-                      <div key={idx} className="text-sm bg-gray-50 p-2 rounded">
-                        <span className="text-gray-600">{item.description}</span>
-                        <span className="text-gray-400 mx-2">×</span>
-                        <span className="font-medium">{item.quantity}</span>
-                        <span className="text-gray-400 mx-2">=</span>
-                        <span className="font-medium">{formatCurrency(item.total)}</span>
-                      </div>
-                    ))}
-                    {invoice.items.length > 3 && (
-                      <div className="text-sm text-gray-500 p-2">
-                        +{invoice.items.length - 3} بنود أخرى
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Metadata */}
-              <div className="mt-4 pt-4 border-t flex items-center justify-between text-sm text-gray-500">
-                <span>أنشئ بواسطة: {invoice.createdBy}</span>
-                <span>تاريخ الاستحقاق: {invoice.dueDate || 'غير محدد'}</span>
-              </div>
+          {expenseByCategory.length === 0 ? (
+            <Card className="text-center py-12">
+              <Receipt className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">لا توجد مصروفات بعد</p>
+              <Button className="mt-4" onClick={() => setShowExpenseModal(true)} icon={Plus}>
+                أضف أول مصروف
+              </Button>
             </Card>
-          ))}
+          ) : (
+            expenseByCategory.map(({ category, label, color, amount }) => {
+              const pct = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
+              const barColor = color.split(' ')[0].replace('bg-', 'bg-').replace('100', '500');
+              return (
+                <Card key={category}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${color}`}>{label}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-gray-900">{formatCurrency(amount)}</span>
+                      <span className="text-sm text-gray-500 mr-2">({pct.toFixed(1)}%)</span>
+                    </div>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${pct}%`, background: '#1E3A5F' }}
+                    />
+                  </div>
+                </Card>
+              );
+            })
+          )}
         </div>
-      ) : (
-        <EmptyState
-          icon={Receipt}
-          title="لا يوجد مستندات"
-          description="ابدأ بإنشاء فاتورة أو عرض سعر"
-        />
       )}
 
-      {/* Create/Edit Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={resetForm}
-        title={editingInvoice ? 'تعديل المستند' : 'إنشاء مستند جديد'}
-        size="lg"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">رقم المستند</label>
+      {/* ── Tab: قائمة المصروفات ─────────────────────────────── */}
+      {activeTab === 'expenses' && (
+        <div className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                required
-                value={formData.invoiceNumber}
-                onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
-                placeholder="مثال: INV-001"
+                placeholder="بحث في المصروفات..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pr-10 pl-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">النوع</label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
-              >
-                <option value="invoice">فاتورة</option>
-                <option value="quote">عرض سعر</option>
-              </select>
-            </div>
+            <select
+              value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)}
+              className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            >
+              <option value="all">جميع الفئات</option>
+              {CATEGORIES.map(c => (
+                <option key={c} value={c}>{getCategoryLabel(c)}</option>
+              ))}
+            </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">المشروع</label>
-              <select
-                value={formData.projectId}
-                onChange={(e) => handleProjectChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
-              >
-                <option value="">اختر المشروع</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+          {/* Expenses Table */}
+          {filteredExpenses.length === 0 ? (
+            <Card className="text-center py-12">
+              <Filter className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">لا توجد مصروفات مطابقة</p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {filteredExpenses.map(t => (
+                <Card key={t.id} className="hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-red-50 rounded-lg">
+                        <TrendingDown className="w-4 h-4 text-red-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{t.description || t.supplierName}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`px-2 py-0.5 rounded text-xs ${getCategoryColor(t.category as Category)}`}>
+                            {getCategoryLabel(t.category as Category)}
+                          </span>
+                          <span className="text-xs text-gray-400">{t.date}</span>
+                          {t.projectName && (
+                            <span className="text-xs text-blue-600">📁 {t.projectName}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-red-600 text-lg">{formatCurrency(t.debit)}</span>
+                      <button
+                        onClick={() => setDeleteConfirm(t.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="حذف"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">العميل</label>
-              <input
-                type="text"
-                value={formData.clientName}
-                onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
-              />
-            </div>
-          </div>
+          )}
+        </div>
+      )}
 
-          {/* Items */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">البنود</label>
-              <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                <Plus className="w-4 h-4 mr-1" />
-                إضافة بند
-              </Button>
-            </div>
-            {formData.items.map((item, index) => (
-              <div key={index} className="flex gap-2 mb-2 items-center">
-                <input
-                  type="text"
-                  placeholder="الوصف"
-                  value={item.description}
-                  onChange={(e) => updateItem(index, 'description', e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
-                />
-                <input
-                  type="number"
-                  placeholder="الكمية"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
-                  className="w-20 px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
-                />
-                <input
-                  type="number"
-                  placeholder="السعر"
-                  value={item.unitPrice}
-                  onChange={(e) => updateItem(index, 'unitPrice', Number(e.target.value))}
-                  className="w-28 px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
-                />
-                <span className="w-24 text-center">{formatCurrency(item.total)}</span>
-                <button
-                  type="button"
-                  onClick={() => removeItem(index)}
-                  className="p-2 hover:bg-red-50 rounded-lg"
-                >
-                  <X className="w-4 h-4 text-red-500" />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+      {/* ── Modal: إضافة مصروف ──────────────────────────────── */}
+      <Modal isOpen={showExpenseModal} onClose={() => setShowExpenseModal(false)} title="➕ إضافة مصروف جديد" size="lg">
+        <form onSubmit={handleAddExpense} className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ الاستحقاق</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
               <input
                 type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                value={expenseForm.date}
+                onChange={e => setExpenseForm({ ...expenseForm, date: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">الحالة</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">الفئة</label>
               <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as InvoiceStatus })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                value={expenseForm.category}
+                onChange={e => setExpenseForm({ ...expenseForm, category: e.target.value as Category })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                required
               >
-                {INVOICE_STATUSES.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
+                {CATEGORIES.map(c => (
+                  <option key={c} value={c}>{getCategoryLabel(c)}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Totals */}
-          <div className="bg-gray-50 p-4 rounded-xl">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-600">المجموع الفرعي:</span>
-              <span className="font-medium">{formatCurrency(formData.amount)}</span>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">المورد / الجهة</label>
+              <input
+                type="text"
+                value={expenseForm.supplierName}
+                onChange={e => setExpenseForm({ ...expenseForm, supplierName: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                placeholder="اسم المورد"
+                required
+              />
             </div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-600">ضريبة القيمة المضافة (15%):</span>
-              <span className="font-medium">{formatCurrency(formData.vatAmount)}</span>
-            </div>
-            <div className="flex justify-between items-center text-lg font-bold border-t pt-2">
-              <span>الإجمالي:</span>
-              <span className="text-[#1E3A5F]">{formatCurrency(formData.totalAmount)}</span>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ (ر.س)</label>
+              <input
+                type="number"
+                value={expenseForm.debit || ''}
+                onChange={e => setExpenseForm({ ...expenseForm, debit: parseFloat(e.target.value) || 0 })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+                required
+              />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+            <label className="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
+            <input
+              type="text"
+              value={expenseForm.description}
+              onChange={e => setExpenseForm({ ...expenseForm, description: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+              placeholder="وصف المصروف"
             />
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <Button type="submit" className="flex-1">
-              {editingInvoice ? 'تعديل' : 'إنشاء'}
-            </Button>
-            <Button type="button" variant="outline" onClick={resetForm}>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">المشروع (اختياري)</label>
+            <select
+              value={expenseForm.projectId}
+              onChange={e => {
+                const proj = projects.find(p => p.id === e.target.value);
+                setExpenseForm({ ...expenseForm, projectId: e.target.value, projectName: proj?.name || '' });
+              }}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            >
+              <option value="">-- بدون مشروع --</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="hasTaxInvoice"
+              checked={expenseForm.hasTaxInvoice}
+              onChange={e => setExpenseForm({ ...expenseForm, hasTaxInvoice: e.target.checked })}
+              className="w-4 h-4"
+            />
+            <label htmlFor="hasTaxInvoice" className="text-sm text-gray-700">يوجد فاتورة ضريبية</label>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setShowExpenseModal(false)} className="flex-1">
               إلغاء
+            </Button>
+            <Button type="submit" className="flex-1">
+              حفظ المصروف
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Upload Attachment Modal */}
-      <Modal
-        isOpen={showUploadModal}
-        onClose={() => {
-          setShowUploadModal(false);
-          setAttachment('');
-        }}
-        title={`رفع مرفق - ${selectedInvoiceForUpload?.invoiceNumber}`}
-      >
-        <div className="space-y-4">
-          <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
-            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 mb-4">اسحب الصورة أو المستند هنا</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,.pdf"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <FileUp className="w-4 h-4 mr-2" />
-              اختر ملف
-            </Button>
-          </div>
-
-          {attachment && (
-            <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl">
-              <Check className="w-5 h-5 text-green-600" />
-              <span className="text-green-700">تم اختيار الملف بنجاح</span>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <Button onClick={saveAttachment} disabled={!attachment} className="flex-1">
-              حفظ المرفق
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowUploadModal(false);
-                setAttachment('');
-              }}
-            >
-              إلغاء
-            </Button>
-          </div>
+      {/* ── Confirm Delete ──────────────────────────────────── */}
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="تأكيد الحذف" size="sm">
+        <div className="flex items-center gap-3 mb-4 p-3 bg-red-50 rounded-lg">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+          <p className="text-sm text-red-700">هل أنت متأكد من حذف هذا المصروف؟ لا يمكن التراجع.</p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={() => setDeleteConfirm(null)} className="flex-1">إلغاء</Button>
+          <Button
+            variant="danger"
+            className="flex-1"
+            onClick={() => {
+              if (deleteConfirm) {
+                deleteTransaction(deleteConfirm);
+                setDeleteConfirm(null);
+              }
+            }}
+          >
+            حذف
+          </Button>
         </div>
       </Modal>
     </div>
