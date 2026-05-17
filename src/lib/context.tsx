@@ -487,59 +487,88 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const filteredInvoices = filterByUserAccess(invoices, currentUser?.id || '', isAdmin, isAccountant);
   const lowStockItems = stockItems.filter(item => item.quantity <= item.minQuantity);
 
+  // Synchronize local state with Supabase cloud database
+  const syncData = async () => {
+    try {
+      // 1. Fetch Users
+      const { data: usersData, error: uErr } = await supabase.from('users').select('*');
+      if (!uErr && usersData) {
+        const parsedUsers = usersData.map(convertUser);
+        setUsers(parsedUsers);
+        localStorage.setItem(USERS_KEY, JSON.stringify(parsedUsers));
+
+        // Sync active user details in case status/role has changed on other devices
+        const storedUser = localStorage.getItem(CURRENT_USER_KEY);
+        if (storedUser) {
+          const parsedStored = JSON.parse(storedUser);
+          const latestUser = parsedUsers.find(u => u.id === parsedStored.id);
+          if (latestUser) {
+            setCurrentUser(latestUser);
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(latestUser));
+          }
+        }
+      }
+
+      // 2. Fetch Projects
+      const { data: projectsData, error: pErr } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+      if (!pErr && projectsData) {
+        const parsed = projectsData.map(convertProject);
+        setProjects(parsed);
+        localStorage.setItem(PROJECTS_KEY, JSON.stringify(parsed));
+      }
+
+      // 3. Fetch Transactions
+      const { data: transactionsData, error: tErr } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+      if (!tErr && transactionsData) {
+        const parsed = transactionsData.map(convertTransaction);
+        setTransactions(parsed);
+        localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(parsed));
+      }
+
+      // 4. Fetch Clients
+      const { data: clientsData, error: cErr } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+      if (!cErr && clientsData) {
+        const parsed = clientsData.map(convertClient);
+        setClients(parsed);
+        localStorage.setItem(CLIENTS_KEY, JSON.stringify(parsed));
+      }
+
+      // 5. Fetch Stock Items
+      const { data: stockData, error: sErr } = await supabase.from('stock_items').select('*').order('created_at', { ascending: false });
+      if (!sErr && stockData) {
+        const parsed = stockData.map(convertStockItem);
+        setStockItems(parsed);
+        localStorage.setItem(STOCK_KEY, JSON.stringify(parsed));
+      }
+
+      // 6. Fetch Units
+      const { data: unitsData, error: unErr } = await supabase.from('units').select('*').order('created_at', { ascending: false });
+      if (!unErr && unitsData) {
+        const parsed = unitsData.map(convertUnit);
+        setUnits(parsed);
+        localStorage.setItem(UNITS_KEY, JSON.stringify(parsed));
+      }
+
+      // 7. Fetch Invoices
+      const { data: invoicesData, error: iErr } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
+      if (!iErr && invoicesData) {
+        const parsed = invoicesData.map(convertInvoice);
+        setInvoices(parsed);
+        localStorage.setItem(INVOICES_KEY, JSON.stringify(parsed));
+      }
+      return true;
+    } catch (err) {
+      console.error('Supabase syncData error:', err);
+      return false;
+    }
+  };
+
   // Initialize data from Supabase, fall back to LocalStorage
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Try to load from Supabase
-        const { data: usersData, error: uErr } = await supabase.from('users').select('*');
-        if (!uErr && usersData) {
-          const parsedUsers = usersData.map(convertUser);
-          setUsers(parsedUsers);
-          localStorage.setItem(USERS_KEY, JSON.stringify(parsedUsers));
-
-          const { data: projectsData } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
-          if (projectsData) {
-            const parsed = projectsData.map(convertProject);
-            setProjects(parsed);
-            localStorage.setItem(PROJECTS_KEY, JSON.stringify(parsed));
-          }
-
-          const { data: transactionsData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
-          if (transactionsData) {
-            const parsed = transactionsData.map(convertTransaction);
-            setTransactions(parsed);
-            localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(parsed));
-          }
-
-          const { data: clientsData } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
-          if (clientsData) {
-            const parsed = clientsData.map(convertClient);
-            setClients(parsed);
-            localStorage.setItem(CLIENTS_KEY, JSON.stringify(parsed));
-          }
-
-          const { data: stockData } = await supabase.from('stock_items').select('*').order('created_at', { ascending: false });
-          if (stockData) {
-            const parsed = stockData.map(convertStockItem);
-            setStockItems(parsed);
-            localStorage.setItem(STOCK_KEY, JSON.stringify(parsed));
-          }
-
-          const { data: unitsData } = await supabase.from('units').select('*').order('created_at', { ascending: false });
-          if (unitsData) {
-            const parsed = unitsData.map(convertUnit);
-            setUnits(parsed);
-            localStorage.setItem(UNITS_KEY, JSON.stringify(parsed));
-          }
-
-          const { data: invoicesData } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
-          if (invoicesData) {
-            const parsed = invoicesData.map(convertInvoice);
-            setInvoices(parsed);
-            localStorage.setItem(INVOICES_KEY, JSON.stringify(parsed));
-          }
-
+        const synced = await syncData();
+        if (synced) {
           const storedUser = localStorage.getItem(CURRENT_USER_KEY);
           if (storedUser) {
             setCurrentUser(JSON.parse(storedUser));
@@ -604,8 +633,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     initializeApp();
   }, []);
 
+  // Periodic background synchronization and immediate login refresh
+  useEffect(() => {
+    if (currentUser) {
+      // Immediate sync when currentUser session is detected
+      syncData();
+
+      // Periodic background synchronization every 10 seconds
+      const interval = setInterval(() => {
+        syncData();
+      }, 10000);
+
+      return () => clearInterval(interval);
+    }
+  }, [currentUser]);
+
   // Auth functions
   const login = async (email: string, password: string): Promise<boolean> => {
+    // Sync latest users from Supabase before checking password
+    try {
+      const { data: usersData } = await supabase.from('users').select('*');
+      if (usersData) {
+        const parsedUsers = usersData.map(convertUser);
+        setUsers(parsedUsers);
+        localStorage.setItem(USERS_KEY, JSON.stringify(parsedUsers));
+        
+        const user = parsedUsers.find(u => u.email === email && u.isActive && (!u.password || u.password === password));
+        if (user) {
+          setCurrentUser(user);
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+          syncData();
+          return true;
+        }
+      }
+    } catch (err) {
+      console.error('Supabase login check error, falling back to local users:', err);
+    }
+
     const user = users.find(u => u.email === email && u.isActive && (!u.password || u.password === password));
     if (user) {
       setCurrentUser(user);
@@ -616,6 +680,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const loginWithUsername = async (username: string, password: string): Promise<boolean> => {
+    // Sync latest users from Supabase before checking password
+    try {
+      const { data: usersData } = await supabase.from('users').select('*');
+      if (usersData) {
+        const parsedUsers = usersData.map(convertUser);
+        setUsers(parsedUsers);
+        localStorage.setItem(USERS_KEY, JSON.stringify(parsedUsers));
+        
+        const user = parsedUsers.find(u => (u.username === username || u.email === username) && u.isActive && (!u.password || u.password === password));
+        if (user) {
+          setCurrentUser(user);
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+          syncData();
+          return true;
+        }
+      }
+    } catch (err) {
+      console.error('Supabase loginWithUsername check error, falling back to local users:', err);
+    }
+
     const user = users.find(u => (u.username === username || u.email === username) && u.isActive && (!u.password || u.password === password));
     if (user) {
       setCurrentUser(user);
