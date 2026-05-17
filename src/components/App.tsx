@@ -136,8 +136,8 @@ export const App: React.FC = () => {
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
+                <Icon className="w-5 h-5 pointer-events-none" />
+                <span className="font-medium pointer-events-none">{item.label}</span>
               </button>
             );
           })}
@@ -160,8 +160,8 @@ export const App: React.FC = () => {
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
+                    <Icon className="w-5 h-5 pointer-events-none" />
+                    <span className="font-medium pointer-events-none">{item.label}</span>
                   </button>
                 );
               })}
@@ -179,15 +179,15 @@ export const App: React.FC = () => {
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <User className="w-5 h-5" />
-            <span className="font-medium">{t('nav.profile')}</span>
+            <User className="w-5 h-5 pointer-events-none" />
+            <span className="font-medium pointer-events-none">{t('nav.profile')}</span>
           </button>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
           >
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">{t('nav.logout')}</span>
+            <LogOut className="w-5 h-5 pointer-events-none" />
+            <span className="font-medium pointer-events-none">{t('nav.logout')}</span>
           </button>
         </div>
       </aside>
@@ -256,29 +256,31 @@ export const App: React.FC = () => {
       <Navigation />
 
       {/* Custom click-safe Toasts overlay */}
-      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 w-full max-w-md pointer-events-none px-4">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className="bg-white/95 backdrop-blur-md border border-gray-100 rounded-xl shadow-xl p-4 pointer-events-auto flex items-start gap-3 fade-in border-r-4 border-r-[#1E3A5F] max-w-md w-full"
-            style={{ direction: 'rtl' }}
-          >
-            <div className="w-8 h-8 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center text-[#1E3A5F] flex-shrink-0">
-              <Bell className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0 text-right">
-              <p className="font-semibold text-gray-900 text-sm leading-tight">{t.title}</p>
-              {t.message && <p className="text-xs text-gray-500 mt-1 leading-snug">{t.message}</p>}
-            </div>
-            <button
-              onClick={() => removeToast(t.id)}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded-lg hover:bg-gray-100"
+      {toasts.length > 0 && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 w-full max-w-md pointer-events-none px-4">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="bg-white/95 backdrop-blur-md border border-gray-100 rounded-xl shadow-xl p-4 pointer-events-auto flex items-start gap-3 fade-in border-r-4 border-r-[#1E3A5F] max-w-md w-full"
+              style={{ direction: 'rtl' }}
             >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-      </div>
+              <div className="w-8 h-8 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center text-[#1E3A5F] flex-shrink-0 pointer-events-none">
+                <Bell className="w-4 h-4 pointer-events-none" />
+              </div>
+              <div className="flex-1 min-w-0 text-right pointer-events-none">
+                <p className="font-semibold text-gray-900 text-sm leading-tight pointer-events-none">{t.title}</p>
+                {t.message && <p className="text-xs text-gray-500 mt-1 leading-snug pointer-events-none">{t.message}</p>}
+              </div>
+              <button
+                onClick={() => removeToast(t.id)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded-lg hover:bg-gray-100"
+              >
+                <X className="w-4 h-4 pointer-events-none" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Main Content - dynamic margin to avoid sidebar overlap */}
       <main className={`pb-20 md:pb-0 ${language === 'ar' ? 'md:mr-64' : 'md:ml-64'}`}>
