@@ -90,8 +90,10 @@ export const App: React.FC = () => {
 
   const Navigation = () => (
     <>
-      {/* Desktop Sidebar - Right side for RTL */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-l border-gray-200 h-screen fixed right-0 top-0">
+      {/* Desktop Sidebar - Dynamic Right/Left side for RTL/LTR */}
+      <aside className={`hidden md:flex flex-col w-64 bg-white h-screen fixed top-0 z-40 ${
+        language === 'ar' ? 'right-0 border-l border-gray-200' : 'left-0 border-r border-gray-200'
+      }`}>
         {/* Logo */}
         <div className="p-6 border-b">
           <div className="flex items-center gap-3">
@@ -278,8 +280,8 @@ export const App: React.FC = () => {
         ))}
       </div>
 
-      {/* Main Content - add mr-64 on desktop to avoid sidebar overlap */}
-      <main className="md:mr-64 pb-20 md:pb-0">
+      {/* Main Content - dynamic margin to avoid sidebar overlap */}
+      <main className={`pb-20 md:pb-0 ${language === 'ar' ? 'md:mr-64' : 'md:ml-64'}`}>
         {/* Top Header (Mobile) */}
         <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
