@@ -25,9 +25,9 @@ export const Stock: React.FC = () => {
   const units = ['قطعة', 'كجم', 'لتر', 'علبة', 'كيس', 'وحدة'];
 
   const filteredItems = stockItems.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.supplier.toLowerCase().includes(searchTerm.toLowerCase())
+    (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.supplier || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Get items that need restocking

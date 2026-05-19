@@ -44,8 +44,8 @@ export const Transactions: React.FC<TransactionsProps> = ({ onNavigate }) => {
 
   // Filter transactions
   const filteredTransactions = sortedTransactions.filter(t => {
-    const matchesSearch = t.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         t.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (t.supplierName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (t.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || t.category === categoryFilter;
     const matchesProject = projectFilter === 'all' || t.projectId === projectFilter || t.projectName === projectFilter;
     const matchesDate = !dateFilter || t.date.startsWith(dateFilter);

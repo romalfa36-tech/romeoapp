@@ -29,9 +29,9 @@ export const UsersManagement: React.FC<UsersManagementProps> = () => {
 
   // Filter users
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (u.username && u.username.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = (u.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (u.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (u.username && (u.username || '').toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
     return matchesSearch && matchesRole;
   });

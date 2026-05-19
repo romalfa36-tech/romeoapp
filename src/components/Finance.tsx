@@ -52,8 +52,8 @@ export const Finance: React.FC = () => {
   // ── فلترة المصروفات ──────────────────────────────────────────
   const allExpenses = transactions.filter(t => t.debit > 0);
   const filteredExpenses = allExpenses.filter(t => {
-    const matchSearch = t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.supplierName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = (t.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.supplierName || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchCat = categoryFilter === 'all' || t.category === categoryFilter;
     return matchSearch && matchCat;
   });

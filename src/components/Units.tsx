@@ -29,7 +29,7 @@ export const Units: React.FC = () => {
   });
 
   const filteredUnits = units.filter(unit => {
-    const matchesSearch = unit.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (unit.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || unit.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
