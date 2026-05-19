@@ -44,6 +44,8 @@ export const UsersManagement: React.FC<UsersManagementProps> = () => {
     { value: 'view_reports', label: 'عرض التقارير' },
     { value: 'edit_projects', label: 'تعديل المشاريع (بدون حذف)' },
     { value: 'review_invoices', label: 'مراجعة الفواتير (المحاسبة)' },
+    { value: 'manage_stock', label: 'إدارة المخزون' },
+    { value: 'manage_units', label: 'إدارة الوحدات' },
   ];
 
   return (

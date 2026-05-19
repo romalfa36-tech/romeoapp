@@ -63,6 +63,13 @@ export const App: React.FC = () => {
     { id: 'Reports', label: t('nav.reports'), icon: FileText },
   ];
 
+  const visibleAdminItems = adminNavItems.filter(item => {
+    if (isAdmin) return true;
+    if (item.id === 'Stock' && currentUser?.permissions?.includes('manage_stock')) return true;
+    if (item.id === 'Units' && currentUser?.permissions?.includes('manage_units')) return true;
+    return false;
+  });
+
   const handleNavigate = (page: string, id?: string) => {
     if (page === 'projectDetails' && id) {
       setSelectedProjectId(id);
@@ -109,9 +116,9 @@ export const App: React.FC = () => {
       case 'Clients':
         return isAdmin ? <Clients /> : <Dashboard onNavigate={handleNavigate} />;
       case 'Stock':
-        return isAdmin ? <Stock /> : <Dashboard onNavigate={handleNavigate} />;
+        return (isAdmin || currentUser?.permissions?.includes('manage_stock')) ? <Stock /> : <Dashboard onNavigate={handleNavigate} />;
       case 'Units':
-        return isAdmin ? <Units /> : <Dashboard onNavigate={handleNavigate} />;
+        return (isAdmin || currentUser?.permissions?.includes('manage_units')) ? <Units /> : <Dashboard onNavigate={handleNavigate} />;
       case 'Users':
         return isAdmin ? <UsersManagement /> : <Dashboard onNavigate={handleNavigate} />;
       case 'Profile':
@@ -175,12 +182,12 @@ export const App: React.FC = () => {
             );
           })}
 
-          {isAdmin && (
+          {visibleAdminItems.length > 0 && (
             <>
               <div className="py-2">
                 <p className="px-4 text-xs text-gray-400 uppercase">{t('nav.management')}</p>
               </div>
-              {adminNavItems.map((item) => {
+              {visibleAdminItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.id;
                 return (

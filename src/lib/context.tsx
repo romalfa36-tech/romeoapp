@@ -786,6 +786,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: newUser.id,
         ...userToDB(newUser)
       }]);
+      await syncData();
     } catch (err) {
       console.error('Supabase addUser error:', err);
     }
@@ -812,6 +813,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (userData.username) dbData.username = userData.username;
       if (userData.password) dbData.password = userData.password;
       await supabase.from('users').update(dbData).eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase updateUser error:', err);
     }
@@ -824,6 +826,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       await supabase.from('users').delete().eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase deleteUser error:', err);
     }
@@ -855,6 +858,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: newProject.id,
         ...projectToDB(newProject)
       }]);
+      await syncData();
     } catch (err) {
       console.error('Supabase addProject error:', err);
     }
@@ -878,6 +882,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       dbData.updated_at = new Date().toISOString();
 
       await supabase.from('projects').update(dbData).eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase updateProject error:', err);
     }
@@ -890,6 +895,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       await supabase.from('projects').delete().eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase deleteProject error:', err);
     }
@@ -928,6 +934,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await supabase.from('projects').update({
         comments: updatedComments
       }).eq('id', projectId);
+      await syncData();
     } catch (err) {
       console.error('Supabase addProjectComment error:', err);
     }
@@ -958,6 +965,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: newTransaction.id,
         ...transactionToDB(newTransaction)
       }]);
+      await syncData();
     } catch (err) {
       console.error('Supabase addTransaction error:', err);
     }
@@ -984,6 +992,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (transactionData.notes !== undefined) dbData.notes = transactionData.notes;
 
       await supabase.from('transactions').update(dbData).eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase updateTransaction error:', err);
     }
@@ -996,6 +1005,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       await supabase.from('transactions').delete().eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase deleteTransaction error:', err);
     }
@@ -1017,6 +1027,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: newClient.id,
         ...clientToDB(newClient)
       }]);
+      await syncData();
     } catch (err) {
       console.error('Supabase addClient error:', err);
     }
@@ -1037,6 +1048,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (clientData.notes !== undefined) dbData.notes = clientData.notes;
 
       await supabase.from('clients').update(dbData).eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase updateClient error:', err);
     }
@@ -1049,6 +1061,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       await supabase.from('clients').delete().eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase deleteClient error:', err);
     }
@@ -1070,6 +1083,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: newItem.id,
         ...stockItemToDB(newItem)
       }]);
+      await syncData();
     } catch (err) {
       console.error('Supabase addStockItem error:', err);
     }
@@ -1102,6 +1116,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (itemData.notes !== undefined) dbData.notes = itemData.notes;
 
       await supabase.from('stock_items').update(dbData).eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase updateStockItem error:', err);
     }
@@ -1114,6 +1129,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       await supabase.from('stock_items').delete().eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase deleteStockItem error:', err);
     }
@@ -1135,6 +1151,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: newUnit.id,
         ...unitToDB(newUnit)
       }]);
+      await syncData();
     } catch (err) {
       console.error('Supabase addUnit error:', err);
     }
@@ -1154,6 +1171,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (unitData.notes !== undefined) dbData.notes = unitData.notes;
 
       await supabase.from('units').update(dbData).eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase updateUnit error:', err);
     }
@@ -1166,6 +1184,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       await supabase.from('units').delete().eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase deleteUnit error:', err);
     }
@@ -1188,6 +1207,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: newInvoice.id,
         ...invoiceToDB(newInvoice)
       }]);
+      await syncData();
     } catch (err) {
       console.error('Supabase addInvoice error:', err);
     }
@@ -1217,6 +1237,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (invoiceData.reviewedAt !== undefined) dbData.reviewed_at = invoiceData.reviewedAt || null;
 
       await supabase.from('invoices').update(dbData).eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase updateInvoice error:', err);
     }
@@ -1229,6 +1250,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       await supabase.from('invoices').delete().eq('id', id);
+      await syncData();
     } catch (err) {
       console.error('Supabase deleteInvoice error:', err);
     }
