@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, session } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -43,6 +43,25 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // ── CORS bypass for Supabase under file:// protocol ──────────────
+  // When Electron loads local files via file://, the browser engine treats it
+  // as a restricted origin and blocks all cross-origin requests to Supabase.
+  // These interceptors inject the necessary headers to allow full connectivity.
+  const supabaseFilter = { urls: ['*://*.supabase.co/*'] };
+
+  session.defaultSession.webRequest.onBeforeSendHeaders(supabaseFilter, (details, callback) => {
+    details.requestHeaders['Origin'] = 'http://localhost';
+    callback({ requestHeaders: details.requestHeaders });
+  });
+
+  session.defaultSession.webRequest.onHeadersReceived(supabaseFilter, (details, callback) => {
+    const responseHeaders = { ...details.responseHeaders };
+    responseHeaders['Access-Control-Allow-Origin'] = ['*'];
+    responseHeaders['Access-Control-Allow-Headers'] = ['authorization, x-client-info, apikey, content-type, range, Accept, X-Supabase-Api-Version'];
+    responseHeaders['Access-Control-Allow-Methods'] = ['GET, POST, PUT, PATCH, DELETE, OPTIONS'];
+    callback({ responseHeaders });
+  });
+
   createWindow();
 
   app.on('activate', () => {

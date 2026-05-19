@@ -519,7 +519,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const localUsers: User[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced users
-          const unsyncedUsers = localUsers.filter(lu => isUUID(lu.id) && !parsedUsers.some(su => su.id === lu.id));
+          const unsyncedUsers = localUsers.filter(lu => lu && lu.id && isUUID(lu.id) && !parsedUsers.some(su => su.id === lu.id));
           for (const uu of unsyncedUsers) {
             try {
               await supabase.from('users').insert([{
@@ -565,7 +565,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const localProjects: Project[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced projects
-          const unsynced = localProjects.filter(lp => isUUID(lp.id) && !parsed.some(sp => sp.id === lp.id));
+          const unsynced = localProjects.filter(lp => lp && lp.id && isUUID(lp.id) && !parsed.some(sp => sp.id === lp.id));
           for (const up of unsynced) {
             try {
               const { error: insErr } = await supabase.from('projects').insert([{
@@ -600,7 +600,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const localTransactions: Transaction[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced transactions
-          const unsynced = localTransactions.filter(lt => isUUID(lt.id) && !parsed.some(st => st.id === lt.id));
+          const unsynced = localTransactions.filter(lt => lt && lt.id && isUUID(lt.id) && !parsed.some(st => st.id === lt.id));
           for (const ut of unsynced) {
             try {
               await supabase.from('transactions').insert([{
@@ -632,7 +632,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const localClients: Client[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced clients
-          const unsynced = localClients.filter(lc => isUUID(lc.id) && !parsed.some(sc => sc.id === lc.id));
+          const unsynced = localClients.filter(lc => lc && lc.id && isUUID(lc.id) && !parsed.some(sc => sc.id === lc.id));
           for (const uc of unsynced) {
             try {
               await supabase.from('clients').insert([{
@@ -664,7 +664,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const localStock: StockItem[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced stock items
-          const unsynced = localStock.filter(ls => isUUID(ls.id) && !parsed.some(ss => ss.id === ls.id));
+          const unsynced = localStock.filter(ls => ls && ls.id && isUUID(ls.id) && !parsed.some(ss => ss.id === ls.id));
           for (const us of unsynced) {
             try {
               await supabase.from('stock_items').insert([{
@@ -696,7 +696,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const localUnits: Unit[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced units
-          const unsynced = localUnits.filter(lu => isUUID(lu.id) && !parsed.some(su => su.id === lu.id));
+          const unsynced = localUnits.filter(lu => lu && lu.id && isUUID(lu.id) && !parsed.some(su => su.id === lu.id));
           for (const uu of unsynced) {
             try {
               await supabase.from('units').insert([{
@@ -728,7 +728,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const localInvoices: Invoice[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced invoices
-          const unsynced = localInvoices.filter(li => isUUID(li.id) && !parsed.some(si => si.id === li.id));
+          const unsynced = localInvoices.filter(li => li && li.id && isUUID(li.id) && !parsed.some(si => si.id === li.id));
           for (const ui of unsynced) {
             try {
               await supabase.from('invoices').insert([{
