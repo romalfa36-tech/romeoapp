@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Component, ErrorInfo, ReactNode } from 'react';
 import { useApp } from '../lib/context';
 import { useLanguage, Language } from '../lib/context';
 import { Login } from './Login';
@@ -30,6 +30,54 @@ import {
   DollarSign,
   Globe
 } from 'lucide-react';
+
+// Error Boundary - catches rendering crashes and shows recovery UI
+interface ErrorBoundaryProps { children: ReactNode; fallbackNavigate?: () => void; }
+interface ErrorBoundaryState { hasError: boolean; error: Error | null; }
+
+class PageErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('PageErrorBoundary caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 px-6 text-center" dir="rtl">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-red-600 text-2xl">⚠</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">حدث خطأ في عرض هذه الصفحة</h2>
+          <p className="text-gray-500 mb-6 max-w-md">
+            قد يكون السبب بيانات غير مكتملة. يرجى المحاولة مرة أخرى.
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              this.props.fallbackNavigate?.();
+            }}
+            className="px-6 py-3 bg-[#1E3A5F] text-white rounded-xl font-medium hover:bg-[#1E3A5F]/90 transition-colors"
+          >
+            إعادة المحاولة
+          </button>
+          <p className="text-xs text-gray-400 mt-4 font-mono max-w-sm break-all">
+            {this.state.error?.message}
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export const App: React.FC = () => {
   const { currentUser, isAuthenticated, logout, notifications, markAsRead, canViewFinance, toasts, removeToast } = useApp();
@@ -376,7 +424,9 @@ export const App: React.FC = () => {
 
         {/* Page Content */}
         <div className="p-4 md:p-6 lg:p-8">
-          {renderPage()}
+          <PageErrorBoundary fallbackNavigate={() => setCurrentPage('Dashboard')}>
+            {renderPage()}
+          </PageErrorBoundary>
         </div>
       </main>
     </div>

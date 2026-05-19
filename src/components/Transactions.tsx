@@ -16,8 +16,7 @@ import {
   Calendar,
   FileText
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { ar } from 'date-fns/locale';
+import { safeFormatDate } from '../lib/types';
 
 interface TransactionsProps {
   onNavigate: (page: string, id?: string) => void;
@@ -177,7 +176,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ onNavigate }) => {
                   <tr key={t.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 text-sm text-gray-500">{index + 1}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      {format(parseISO(t.date), 'dd/MM/yyyy', { locale: ar })}
+                      {safeFormatDate(t.date)}
                     </td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{t.supplierName}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{t.description || '-'}</td>

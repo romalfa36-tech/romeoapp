@@ -205,6 +205,29 @@ export const formatDate = (date: string): string => {
   });
 };
 
+// Safe date formatting - never crashes on invalid dates
+export const safeFormatDate = (dateStr: string | null | undefined): string => {
+  try {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  } catch {
+    return dateStr || '-';
+  }
+};
+
+export const safeFormatDateTime = (dateStr: string | null | undefined): string => {
+  try {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return dateStr || '-';
+  }
+};
+
 export const generateId = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;

@@ -21,8 +21,7 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { ar } from 'date-fns/locale';
+import { safeFormatDate, safeFormatDateTime } from '../lib/types';
 
 interface ProjectDetailsProps {
   projectId: string;
@@ -204,7 +203,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBac
                 {projectTransactions.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      {format(parseISO(t.date), 'dd/MM/yyyy', { locale: ar })}
+                      {safeFormatDate(t.date)}
                     </td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{t.supplierName}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{t.description}</td>
@@ -281,7 +280,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBac
             project.comments.map((comment) => (
               <div key={comment.id} className="flex gap-3 items-start p-3 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100/50 transition-colors">
                 <div className="w-9 h-9 rounded-full bg-[#1E3A5F] text-white flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0">
-                  {comment.userName.charAt(0).toUpperCase()}
+                  {(comment.userName || '?').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center justify-between">
@@ -296,7 +295,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBac
                       </span>
                     </div>
                     <span className="text-xs text-gray-400">
-                      {format(parseISO(comment.createdAt), 'dd/MM/yyyy HH:mm', { locale: ar })}
+                      {safeFormatDateTime(comment.createdAt)}
                     </span>
                   </div>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-white p-2.5 rounded-lg border border-gray-100 shadow-2xs">
