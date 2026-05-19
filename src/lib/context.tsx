@@ -256,10 +256,10 @@ const INVOICES_KEY = 'beeforce_invoices';
 
 // Helper to convert Supabase user
 const convertUser = (data: any): User => ({
-  id: data.id,
-  email: data.email,
-  name: data.name,
-  role: data.role,
+  id: data.id || '',
+  email: data.email || '',
+  name: data.name || '',
+  role: data.role || 'employee',
   permissions: data.permissions || [],
   username: data.username || '',
   password: data.password || '',
@@ -269,9 +269,9 @@ const convertUser = (data: any): User => ({
 
 // Helper to convert Supabase project
 const convertProject = (data: any): Project => ({
-  id: data.id,
-  name: data.name,
-  clientName: data.client_name,
+  id: data.id || '',
+  name: data.name || '',
+  clientName: data.client_name || '',
   shootDates: data.shoot_dates || '',
   analyticalAccount: data.analytical_account || '',
   status: data.status || 'draft',
@@ -286,12 +286,12 @@ const convertProject = (data: any): Project => ({
 
 // Helper to convert Supabase transaction
 const convertTransaction = (data: any): Transaction => ({
-  id: data.id,
+  id: data.id || '',
   no: data.no || '',
-  date: data.date,
-  supplierName: data.supplier_name,
+  date: data.date || '',
+  supplierName: data.supplier_name || '',
   description: data.description || '',
-  category: data.category,
+  category: data.category || '',
   debit: Number(data.debit) || 0,
   credit: Number(data.credit) || 0,
   balance: Number(data.balance) || 0,
@@ -305,8 +305,8 @@ const convertTransaction = (data: any): Transaction => ({
 
 // Helper to convert Supabase client
 const convertClient = (data: any): Client => ({
-  id: data.id,
-  name: data.name,
+  id: data.id || '',
+  name: data.name || '',
   email: data.email || '',
   phone: data.phone || '',
   company: data.company || '',
@@ -317,8 +317,8 @@ const convertClient = (data: any): Client => ({
 
 // Helper to convert Supabase stock item
 const convertStockItem = (data: any): StockItem => ({
-  id: data.id,
-  name: data.name,
+  id: data.id || '',
+  name: data.name || '',
   category: data.category || '',
   unit: data.unit || '',
   quantity: Number(data.quantity) || 0,
@@ -331,8 +331,8 @@ const convertStockItem = (data: any): StockItem => ({
 
 // Helper to convert Supabase unit
 const convertUnit = (data: any): Unit => ({
-  id: data.id,
-  name: data.name,
+  id: data.id || '',
+  name: data.name || '',
   type: data.type || 'other',
   status: data.status || 'available',
   capacity: Number(data.capacity) || 0,
@@ -342,7 +342,7 @@ const convertUnit = (data: any): Unit => ({
 
 // Helper to convert Supabase invoice
 const convertInvoice = (data: any): Invoice => ({
-  id: data.id,
+  id: data.id || '',
   invoiceNumber: data.invoice_number || '',
   type: data.type || 'invoice',
   projectId: data.project_id || '',
@@ -503,20 +503,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Synchronize local state with Supabase cloud database
   const syncData = async () => {
+    const isUUID = (str: string) => {
+      if (!str) return false;
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    };
+
     try {
       // 1. Fetch Users
       try {
         const { data: usersData, error: uErr } = await supabase.from('users').select('*');
         if (!uErr && usersData) {
           const parsedUsers = usersData.map(convertUser);
-          setUsers(parsedUsers);
-          localStorage.setItem(USERS_KEY, JSON.stringify(parsedUsers));
+          
+          const localStr = localStorage.getItem(USERS_KEY);
+          const localUsers: User[] = localStr ? JSON.parse(localStr) : [];
+          
+          // Auto-push unsynced users
+          const unsyncedUsers = localUsers.filter(lu => isUUID(lu.id) && !parsedUsers.some(su => su.id === lu.id));
+          for (const uu of unsyncedUsers) {
+            try {
+              await supabase.from('users').insert([{
+                id: uu.id,
+                ...userToDB(uu)
+              }]);
+            } catch (e) {
+              console.error('Auto-push user failed:', uu.id, e);
+            }
+          }
+          
+          const mergedUsers = [...unsyncedUsers, ...parsedUsers];
+          const uniqueUsers = Array.from(new Map(mergedUsers.map(u => [u.id, u])).values());
+          
+          setUsers(uniqueUsers);
+          localStorage.setItem(USERS_KEY, JSON.stringify(uniqueUsers));
 
           // Sync active user details in case status/role has changed on other devices
           const storedUser = localStorage.getItem(CURRENT_USER_KEY);
           if (storedUser) {
             const parsedStored = JSON.parse(storedUser);
-            const latestUser = parsedUsers.find(u => u.id === parsedStored.id);
+            const latestUser = uniqueUsers.find(u => u.id === parsedStored.id);
             if (latestUser) {
               setCurrentUser(latestUser);
               localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(latestUser));
@@ -530,10 +555,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // 2. Fetch Projects
       try {
         const { data: projectsData, error: pErr } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+        if (pErr) {
+          console.error('Fetch projects error from Supabase:', pErr);
+        }
         if (!pErr && projectsData) {
           const parsed = projectsData.map(convertProject);
-          setProjects(parsed);
-          localStorage.setItem(PROJECTS_KEY, JSON.stringify(parsed));
+          
+          const localStr = localStorage.getItem(PROJECTS_KEY);
+          const localProjects: Project[] = localStr ? JSON.parse(localStr) : [];
+          
+          // Auto-push unsynced projects
+          const unsynced = localProjects.filter(lp => isUUID(lp.id) && !parsed.some(sp => sp.id === lp.id));
+          for (const up of unsynced) {
+            try {
+              const { error: insErr } = await supabase.from('projects').insert([{
+                id: up.id,
+                ...projectToDB(up)
+              }]);
+              if (insErr) {
+                console.error('Auto-push project failed with Supabase DB error:', up.id, insErr);
+              }
+            } catch (e) {
+              console.error('Auto-push project failed with exception:', up.id, e);
+            }
+          }
+          
+          const merged = [...unsynced, ...parsed];
+          const unique = Array.from(new Map(merged.map(p => [p.id, p])).values());
+          
+          setProjects(unique);
+          localStorage.setItem(PROJECTS_KEY, JSON.stringify(unique));
         }
       } catch (err) {
         console.error('Fetch projects error:', err);
@@ -544,8 +595,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const { data: transactionsData, error: tErr } = await supabase.from('transactions').select('*').order('date', { ascending: false });
         if (!tErr && transactionsData) {
           const parsed = transactionsData.map(convertTransaction);
-          setTransactions(parsed);
-          localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(parsed));
+          
+          const localStr = localStorage.getItem(TRANSACTIONS_KEY);
+          const localTransactions: Transaction[] = localStr ? JSON.parse(localStr) : [];
+          
+          // Auto-push unsynced transactions
+          const unsynced = localTransactions.filter(lt => isUUID(lt.id) && !parsed.some(st => st.id === lt.id));
+          for (const ut of unsynced) {
+            try {
+              await supabase.from('transactions').insert([{
+                id: ut.id,
+                ...transactionToDB(ut)
+              }]);
+            } catch (e) {
+              console.error('Auto-push transaction failed:', ut.id, e);
+            }
+          }
+          
+          const merged = [...unsynced, ...parsed];
+          const unique = Array.from(new Map(merged.map(t => [t.id, t])).values());
+          
+          setTransactions(unique);
+          localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(unique));
         }
       } catch (err) {
         console.error('Fetch transactions error:', err);
@@ -556,8 +627,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const { data: clientsData, error: cErr } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
         if (!cErr && clientsData) {
           const parsed = clientsData.map(convertClient);
-          setClients(parsed);
-          localStorage.setItem(CLIENTS_KEY, JSON.stringify(parsed));
+          
+          const localStr = localStorage.getItem(CLIENTS_KEY);
+          const localClients: Client[] = localStr ? JSON.parse(localStr) : [];
+          
+          // Auto-push unsynced clients
+          const unsynced = localClients.filter(lc => isUUID(lc.id) && !parsed.some(sc => sc.id === lc.id));
+          for (const uc of unsynced) {
+            try {
+              await supabase.from('clients').insert([{
+                id: uc.id,
+                ...clientToDB(uc)
+              }]);
+            } catch (e) {
+              console.error('Auto-push client failed:', uc.id, e);
+            }
+          }
+          
+          const merged = [...unsynced, ...parsed];
+          const unique = Array.from(new Map(merged.map(c => [c.id, c])).values());
+          
+          setClients(unique);
+          localStorage.setItem(CLIENTS_KEY, JSON.stringify(unique));
         }
       } catch (err) {
         console.error('Fetch clients error:', err);
@@ -568,8 +659,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const { data: stockData, error: sErr } = await supabase.from('stock_items').select('*').order('created_at', { ascending: false });
         if (!sErr && stockData) {
           const parsed = stockData.map(convertStockItem);
-          setStockItems(parsed);
-          localStorage.setItem(STOCK_KEY, JSON.stringify(parsed));
+          
+          const localStr = localStorage.getItem(STOCK_KEY);
+          const localStock: StockItem[] = localStr ? JSON.parse(localStr) : [];
+          
+          // Auto-push unsynced stock items
+          const unsynced = localStock.filter(ls => isUUID(ls.id) && !parsed.some(ss => ss.id === ls.id));
+          for (const us of unsynced) {
+            try {
+              await supabase.from('stock_items').insert([{
+                id: us.id,
+                ...stockItemToDB(us)
+              }]);
+            } catch (e) {
+              console.error('Auto-push stock item failed:', us.id, e);
+            }
+          }
+          
+          const merged = [...unsynced, ...parsed];
+          const unique = Array.from(new Map(merged.map(s => [s.id, s])).values());
+          
+          setStockItems(unique);
+          localStorage.setItem(STOCK_KEY, JSON.stringify(unique));
         }
       } catch (err) {
         console.error('Fetch stock error:', err);
@@ -580,8 +691,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const { data: unitsData, error: unErr } = await supabase.from('units').select('*').order('created_at', { ascending: false });
         if (!unErr && unitsData) {
           const parsed = unitsData.map(convertUnit);
-          setUnits(parsed);
-          localStorage.setItem(UNITS_KEY, JSON.stringify(parsed));
+          
+          const localStr = localStorage.getItem(UNITS_KEY);
+          const localUnits: Unit[] = localStr ? JSON.parse(localStr) : [];
+          
+          // Auto-push unsynced units
+          const unsynced = localUnits.filter(lu => isUUID(lu.id) && !parsed.some(su => su.id === lu.id));
+          for (const uu of unsynced) {
+            try {
+              await supabase.from('units').insert([{
+                id: uu.id,
+                ...unitToDB(uu)
+              }]);
+            } catch (e) {
+              console.error('Auto-push unit failed:', uu.id, e);
+            }
+          }
+          
+          const merged = [...unsynced, ...parsed];
+          const unique = Array.from(new Map(merged.map(u => [u.id, u])).values());
+          
+          setUnits(unique);
+          localStorage.setItem(UNITS_KEY, JSON.stringify(unique));
         }
       } catch (err) {
         console.error('Fetch units error:', err);
@@ -592,8 +723,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const { data: invoicesData, error: iErr } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
         if (!iErr && invoicesData) {
           const parsed = invoicesData.map(convertInvoice);
-          setInvoices(parsed);
-          localStorage.setItem(INVOICES_KEY, JSON.stringify(parsed));
+          
+          const localStr = localStorage.getItem(INVOICES_KEY);
+          const localInvoices: Invoice[] = localStr ? JSON.parse(localStr) : [];
+          
+          // Auto-push unsynced invoices
+          const unsynced = localInvoices.filter(li => isUUID(li.id) && !parsed.some(si => si.id === li.id));
+          for (const ui of unsynced) {
+            try {
+              await supabase.from('invoices').insert([{
+                id: ui.id,
+                ...invoiceToDB(ui)
+              }]);
+            } catch (e) {
+              console.error('Auto-push invoice failed:', ui.id, e);
+            }
+          }
+          
+          const merged = [...unsynced, ...parsed];
+          const unique = Array.from(new Map(merged.map(i => [i.id, i])).values());
+          
+          setInvoices(unique);
+          localStorage.setItem(INVOICES_KEY, JSON.stringify(unique));
         }
       } catch (err) {
         console.error('Fetch invoices error:', err);
@@ -610,7 +761,123 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // 1. Load everything from LocalStorage first to ensure instant 0ms startup
+        // Run migration first
+        const isUUID = (str: string) => {
+          if (!str) return false;
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+        };
+
+        let migratedAny = false;
+
+        // 1. Projects
+        const storedProjectsStr = localStorage.getItem(PROJECTS_KEY);
+        let localProjectsList: Project[] = storedProjectsStr ? JSON.parse(storedProjectsStr) : [];
+        const projectIdMapping: Record<string, string> = {};
+
+        localProjectsList = localProjectsList.map(p => {
+          if (!isUUID(p.id)) {
+            const newId = generateId();
+            projectIdMapping[p.id] = newId;
+            migratedAny = true;
+            return { ...p, id: newId };
+          }
+          return p;
+        });
+
+        // 2. Transactions
+        const storedTransStr = localStorage.getItem(TRANSACTIONS_KEY);
+        let localTransList: Transaction[] = storedTransStr ? JSON.parse(storedTransStr) : [];
+        localTransList = localTransList.map(t => {
+          let updated = { ...t };
+          let changed = false;
+          if (!isUUID(t.id)) {
+            updated.id = generateId();
+            changed = true;
+            migratedAny = true;
+          }
+          if (t.projectId && projectIdMapping[t.projectId]) {
+            updated.projectId = projectIdMapping[t.projectId];
+            changed = true;
+            migratedAny = true;
+          }
+          return changed ? updated : t;
+        });
+
+        // 3. Invoices
+        const storedInvoicesStr = localStorage.getItem(INVOICES_KEY);
+        let localInvoicesList: Invoice[] = storedInvoicesStr ? JSON.parse(storedInvoicesStr) : [];
+        localInvoicesList = localInvoicesList.map(inv => {
+          let updated = { ...inv };
+          let changed = false;
+          if (!isUUID(inv.id)) {
+            updated.id = generateId();
+            changed = true;
+            migratedAny = true;
+          }
+          if (inv.projectId && projectIdMapping[inv.projectId]) {
+            updated.projectId = projectIdMapping[inv.projectId];
+            changed = true;
+            migratedAny = true;
+          }
+          return changed ? updated : inv;
+        });
+
+        // 4. Clients
+        const storedClientsStr = localStorage.getItem(CLIENTS_KEY);
+        let localClientsList: Client[] = storedClientsStr ? JSON.parse(storedClientsStr) : [];
+        localClientsList = localClientsList.map(c => {
+          if (!isUUID(c.id)) {
+            migratedAny = true;
+            return { ...c, id: generateId() };
+          }
+          return c;
+        });
+
+        // 5. Stock
+        const storedStockStr = localStorage.getItem(STOCK_KEY);
+        let localStockList: StockItem[] = storedStockStr ? JSON.parse(storedStockStr) : [];
+        localStockList = localStockList.map(s => {
+          if (!isUUID(s.id)) {
+            migratedAny = true;
+            return { ...s, id: generateId() };
+          }
+          return s;
+        });
+
+        // 6. Units
+        const storedUnitsStr = localStorage.getItem(UNITS_KEY);
+        let localUnitsList: Unit[] = storedUnitsStr ? JSON.parse(storedUnitsStr) : [];
+        localUnitsList = localUnitsList.map(u => {
+          if (!isUUID(u.id)) {
+            migratedAny = true;
+            return { ...u, id: generateId() };
+          }
+          return u;
+        });
+
+        // 7. Users
+        const storedUsersStr = localStorage.getItem(USERS_KEY);
+        let localUsersList: User[] = storedUsersStr ? JSON.parse(storedUsersStr) : [];
+        localUsersList = localUsersList.map(u => {
+          if (!isUUID(u.id)) {
+            migratedAny = true;
+            return { ...u, id: generateId() };
+          }
+          return u;
+        });
+
+        if (migratedAny) {
+          localStorage.setItem(PROJECTS_KEY, JSON.stringify(localProjectsList));
+          localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(localTransList));
+          localStorage.setItem(INVOICES_KEY, JSON.stringify(localInvoicesList));
+          localStorage.setItem(CLIENTS_KEY, JSON.stringify(localClientsList));
+          localStorage.setItem(STOCK_KEY, JSON.stringify(localStockList));
+          localStorage.setItem(UNITS_KEY, JSON.stringify(localUnitsList));
+          localStorage.setItem(USERS_KEY, JSON.stringify(localUsersList));
+          console.log('Successfully migrated offline IDs to UUIDs.');
+        }
+
+        // Load everything from LocalStorage first to ensure instant 0ms startup
         const storedUsers = localStorage.getItem(USERS_KEY);
         let initialUsers: User[] = [];
         if (storedUsers) {
@@ -670,18 +937,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     initializeApp();
   }, []);
 
-  // Periodic background synchronization and immediate login refresh
+  // Periodic background synchronization and immediate login refresh + Realtime listener
   useEffect(() => {
     if (currentUser) {
       // Immediate sync when currentUser session is detected
       syncData();
 
-      // Periodic background synchronization every 10 seconds
+      // Setup Supabase Realtime channel subscription to listen to all public database changes
+      const channel = supabase
+        .channel('db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+          console.log('Realtime DB change caught:', payload);
+          // When any change happens, trigger syncData to update state & LocalStorage
+          syncData();
+        })
+        .subscribe((status) => {
+          console.log(`Supabase Realtime subscription status for user ${currentUser.name}:`, status);
+        });
+
+      // Periodic background synchronization every 10 seconds as a fallback
       const interval = setInterval(() => {
         syncData();
       }, 10000);
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        supabase.removeChannel(channel);
+      };
     }
   }, [currentUser]);
 
@@ -854,10 +1136,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     try {
-      await supabase.from('projects').insert([{
+      const { error } = await supabase.from('projects').insert([{
         id: newProject.id,
         ...projectToDB(newProject)
       }]);
+      if (error) {
+        console.error('Supabase addProject DB error:', error);
+      }
       await syncData();
     } catch (err) {
       console.error('Supabase addProject error:', err);
@@ -881,7 +1166,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (projectData.assignedTo !== undefined) dbData.assigned_to = projectData.assignedTo;
       dbData.updated_at = new Date().toISOString();
 
-      await supabase.from('projects').update(dbData).eq('id', id);
+      const { error } = await supabase.from('projects').update(dbData).eq('id', id);
+      if (error) {
+        console.error('Supabase updateProject DB error:', error);
+      }
       await syncData();
     } catch (err) {
       console.error('Supabase updateProject error:', err);
@@ -894,7 +1182,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects));
 
     try {
-      await supabase.from('projects').delete().eq('id', id);
+      const { error } = await supabase.from('projects').delete().eq('id', id);
+      if (error) {
+        console.error('Supabase deleteProject DB error:', error);
+      }
       await syncData();
     } catch (err) {
       console.error('Supabase deleteProject error:', err);
@@ -931,9 +1222,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     try {
-      await supabase.from('projects').update({
+      const { error } = await supabase.from('projects').update({
         comments: updatedComments
       }).eq('id', projectId);
+      if (error) {
+        console.error('Supabase addProjectComment DB error:', error);
+      }
       await syncData();
     } catch (err) {
       console.error('Supabase addProjectComment error:', err);

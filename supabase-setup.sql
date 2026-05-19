@@ -18,6 +18,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS password TEXT;
 -- ============================================
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_by TEXT;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS assigned_to TEXT[] DEFAULT '{}';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS comments JSONB DEFAULT '[]';
 
 -- Add accountant user
 INSERT INTO users (email, name, username, password, role, permissions, is_active)
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS projects (
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'in-progress', 'paid', 'completed')),
     has_tax_invoice BOOLEAN DEFAULT FALSE,
     notes TEXT,
+    comments JSONB DEFAULT '[]',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -286,6 +288,22 @@ CREATE INDEX IF NOT EXISTS idx_invoices_type ON invoices(type);
 CREATE INDEX IF NOT EXISTS idx_units_status ON units(status);
 
 -- ============================================
+-- SUPABASE REALTIME CONFIGURATION
+-- ============================================
+-- Enable real-time replication for all relevant tables to enable live sync
+begin;
+  -- Add the tables to the supabase_realtime publication if not already present
+  -- (Note: If publication doesn't exist, Supabase automatically creates it, but we alter it here)
+  alter publication supabase_realtime add table users;
+  alter publication supabase_realtime add table projects;
+  alter publication supabase_realtime add table transactions;
+  alter publication supabase_realtime add table clients;
+  alter publication supabase_realtime add table stock_items;
+  alter publication supabase_realtime add table units;
+  alter publication supabase_realtime add table invoices;
+commit;
+
+-- ============================================
 -- DONE!
 -- ============================================
 -- The database is now ready with all new features:
@@ -294,4 +312,5 @@ CREATE INDEX IF NOT EXISTS idx_units_status ON units(status);
 -- - Units management
 -- - Invoices and quotes with workflow
 -- - User credentials (username/password)
+-- - Supabase Realtime active subscriptions
 -- ============================================

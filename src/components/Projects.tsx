@@ -195,24 +195,26 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
       )}
 
       {/* Add/Edit Modal */}
-      <ProjectModal
-        isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          setEditingProject(null);
-        }}
-        project={editingProject ? projects.find(p => p.id === editingProject) : undefined}
-        onSave={(data) => {
-          if (editingProject) {
-            updateProject(editingProject, data);
-          } else {
-            addProject(data);
-          }
-          setShowAddModal(false);
-          setEditingProject(null);
-        }}
-        isAdmin={isAdmin}
-      />
+      {showAddModal && (
+        <ProjectModal
+          isOpen={showAddModal}
+          onClose={() => {
+            setShowAddModal(false);
+            setEditingProject(null);
+          }}
+          project={editingProject ? projects.find(p => p.id === editingProject) : undefined}
+          onSave={(data) => {
+            if (editingProject) {
+              updateProject(editingProject, data);
+            } else {
+              addProject(data);
+            }
+            setShowAddModal(false);
+            setEditingProject(null);
+          }}
+          isAdmin={isAdmin}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal

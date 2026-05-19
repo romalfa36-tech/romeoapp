@@ -252,6 +252,15 @@ export const App: React.FC = () => {
               </button>
             );
           })}
+          <button
+            onClick={() => handleNavigate('Profile')}
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
+              currentPage === 'Profile' ? 'text-[#1E3A5F]' : 'text-gray-400'
+            }`}
+          >
+            <User className="w-5 h-5" />
+            <span className="text-xs">{t('nav.profile')}</span>
+          </button>
         </div>
       </nav>
 

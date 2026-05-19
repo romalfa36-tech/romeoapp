@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../lib/context';
 import { Card, Button, Badge } from './ui';
-import { formatCurrency, getCategoryColor, getCategoryLabel, CATEGORIES } from '../lib/types';
+import { formatCurrency, getCategoryColor, getCategoryLabel, CATEGORIES, UNIT_TYPES } from '../lib/types';
 import {
   FileText,
   Download,
@@ -11,13 +11,16 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  Building2
+  Building2,
+  Package,
+  Truck,
+  AlertTriangle
 } from 'lucide-react';
 
 interface ReportsProps {}
 
 export const Reports: React.FC<ReportsProps> = () => {
-  const { transactions, projects, users, clients, getFinancialStats, getMonthlySummary } = useApp();
+  const { transactions, projects, users, clients, stockItems, units, getFinancialStats, getMonthlySummary } = useApp();
   const [selectedReport, setSelectedReport] = useState('summary');
 
   const stats = getFinancialStats();
@@ -176,6 +179,39 @@ export const Reports: React.FC<ReportsProps> = () => {
       const activeLabel = u.isActive ? 'نشط' : 'غير نشط';
       csvRows.push([u.name, u.email, u.username || '', roleLabel, activeLabel]);
     });
+    csvRows.push([]);
+
+    // 4. Stock Section
+    csvRows.push(['4. قائمة المخزون والمواد']);
+    csvRows.push(['اسم العنصر', 'الفئة', 'الكمية', 'الحد الأدنى', 'وحدة القياس', 'تكلفة الوحدة (ر.س)', 'المورد', 'ملاحظات']);
+    stockItems.forEach(item => {
+      csvRows.push([
+        item.name,
+        item.category,
+        String(item.quantity),
+        String(item.minQuantity),
+        item.unit,
+        String(item.costPerUnit),
+        item.supplier || '',
+        item.notes || ''
+      ]);
+    });
+    csvRows.push([]);
+
+    // 5. Units Section
+    csvRows.push(['5. قائمة الوحدات والمرافق']);
+    csvRows.push(['اسم الوحدة', 'النوع', 'الحالة', 'السعة', 'ملاحظات']);
+    units.forEach(u => {
+      const typeLabel = UNIT_TYPES.find(t => t.value === u.type)?.label || u.type;
+      const statusLabel = u.status === 'available' ? 'متاح' : u.status === 'occupied' ? 'مشغول' : u.status === 'maintenance' ? 'صيانة' : u.status;
+      csvRows.push([
+        u.name,
+        typeLabel,
+        statusLabel,
+        String(u.capacity),
+        u.notes || ''
+      ]);
+    });
 
     // Format & Download
     const csvContent = '\uFEFF' + csvRows.map(row => row.map(escapeCSV).join(',')).join('\n');
@@ -183,6 +219,57 @@ export const Reports: React.FC<ReportsProps> = () => {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `beeforce_system_comprehensive_report_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const exportStockCSV = () => {
+    const csvRows: string[][] = [];
+    csvRows.push(['--- تقرير المخزون والمواد الشامل ---']);
+    csvRows.push([]);
+    csvRows.push(['اسم العنصر', 'الفئة', 'الكمية', 'الحد الأدنى', 'وحدة القياس', 'تكلفة الوحدة (ر.س)', 'المورد', 'ملاحظات']);
+    stockItems.forEach(item => {
+      csvRows.push([
+        item.name,
+        item.category,
+        String(item.quantity),
+        String(item.minQuantity),
+        item.unit,
+        String(item.costPerUnit),
+        item.supplier || '',
+        item.notes || ''
+      ]);
+    });
+
+    const csvContent = '\uFEFF' + csvRows.map(row => row.map(escapeCSV).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `beeforce_stock_report_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const exportUnitsCSV = () => {
+    const csvRows: string[][] = [];
+    csvRows.push(['--- تقرير الوحدات والمرافق الشامل ---']);
+    csvRows.push([]);
+    csvRows.push(['اسم الوحدة', 'النوع', 'الحالة', 'السعة', 'ملاحظات']);
+    units.forEach(u => {
+      const typeLabel = UNIT_TYPES.find(t => t.value === u.type)?.label || u.type;
+      const statusLabel = u.status === 'available' ? 'متاح' : u.status === 'occupied' ? 'مشغول' : u.status === 'maintenance' ? 'صيانة' : u.status;
+      csvRows.push([
+        u.name,
+        typeLabel,
+        statusLabel,
+        String(u.capacity),
+        u.notes || ''
+      ]);
+    });
+
+    const csvContent = '\uFEFF' + csvRows.map(row => row.map(escapeCSV).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `beeforce_units_report_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
@@ -259,6 +346,20 @@ export const Reports: React.FC<ReportsProps> = () => {
           icon={FileText}
         >
           الفواتير الضريبية
+        </Button>
+        <Button
+          variant={selectedReport === 'stock' ? 'primary' : 'secondary'}
+          onClick={() => setSelectedReport('stock')}
+          icon={Package}
+        >
+          تقرير المخزون
+        </Button>
+        <Button
+          variant={selectedReport === 'units' ? 'primary' : 'secondary'}
+          onClick={() => setSelectedReport('units')}
+          icon={Truck}
+        >
+          تقرير الوحدات
         </Button>
       </div>
 
@@ -422,6 +523,180 @@ export const Reports: React.FC<ReportsProps> = () => {
                       <td className="px-4 py-3 text-sm text-red-600 font-medium">{formatCurrency(t.debit)}</td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {selectedReport === 'stock' && (
+          <div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">تقرير المخزون والمواد</h2>
+                <p className="text-sm text-gray-500">متابعة كميات المواد، تكاليفها، وتنبيهات انخفاض المخزون</p>
+              </div>
+              <Button variant="secondary" icon={Download} size="sm" onClick={exportStockCSV}>
+                تصدير المخزون CSV
+              </Button>
+            </div>
+
+            {/* Stock KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-xs text-gray-500">إجمالي المواد الفريدة</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{stockItems.length}</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-xs text-gray-500">القيمة الإجمالية للمخزون</p>
+                <p className="text-xl font-bold text-[#1E3A5F] mt-1">
+                  {formatCurrency(stockItems.reduce((sum, item) => sum + (item.quantity * item.costPerUnit), 0))}
+                </p>
+              </div>
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-amber-700 font-semibold">مواد منخفضة المخزون</p>
+                  <p className="text-xl font-bold text-amber-900 mt-1">
+                    {stockItems.filter(item => item.quantity <= item.minQuantity).length}
+                  </p>
+                </div>
+                {stockItems.filter(item => item.quantity <= item.minQuantity).length > 0 && (
+                  <AlertTriangle className="w-8 h-8 text-amber-600 animate-pulse" />
+                )}
+              </div>
+            </div>
+
+            {/* Stock Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">المادة</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الفئة</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الكمية الحالية</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الحد الأدنى</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">وحدة القياس</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">تكلفة الوحدة</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">القيمة الكلية</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الحالة</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {stockItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-gray-500">لا توجد مواد في المخزون حالياً</td>
+                    </tr>
+                  ) : (
+                    stockItems.map((item) => {
+                      const isLow = item.quantity <= item.minQuantity;
+                      return (
+                        <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{item.category}</td>
+                          <td className={`px-4 py-3 text-sm font-bold ${isLow ? 'text-amber-600' : 'text-gray-900'}`}>{item.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{item.minQuantity}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{item.unit}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(item.costPerUnit)}</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-[#1E3A5F]">
+                            {formatCurrency(item.quantity * item.costPerUnit)}
+                          </td>
+                          <td className="px-4 py-3">
+                            {isLow ? (
+                              <Badge variant="warning" className="flex items-center gap-1 w-fit">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                طلب إمداد ⚠️
+                              </Badge>
+                            ) : (
+                              <Badge variant="success">كافٍ 🟢</Badge>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {selectedReport === 'units' && (
+          <div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">تقرير الوحدات والمرافق</h2>
+                <p className="text-sm text-gray-500">متابعة حالة إشغال المرافق والوحدات وسعتها الاستيعابية</p>
+              </div>
+              <Button variant="secondary" icon={Download} size="sm" onClick={exportUnitsCSV}>
+                تصدير الوحدات CSV
+              </Button>
+            </div>
+
+            {/* Units KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-xs text-gray-500">إجمالي الوحدات والمرافق</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{units.length}</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-xs text-gray-500">الوحدات المشغولة</p>
+                <p className="text-xl font-bold text-blue-600 mt-1">
+                  {units.filter(u => u.status === 'occupied').length}
+                </p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-xs text-gray-500 font-semibold">نسبة الإشغال</p>
+                <p className="text-xl font-bold text-[#1E3A5F] mt-1">
+                  {units.length > 0
+                    ? ((units.filter(u => u.status === 'occupied').length / units.length) * 100).toFixed(1)
+                    : '0.0'}%
+                </p>
+              </div>
+            </div>
+
+            {/* Units Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الوحدة/المرفق</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">النوع</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">السعة الاستيعابية</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الحالة</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">ملاحظات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {units.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">لا توجد وحدات أو مرافق مسجلة حالياً</td>
+                    </tr>
+                  ) : (
+                    units.map((u) => {
+                      const typeLabel = UNIT_TYPES.find(t => t.value === u.type)?.label || u.type;
+                      return (
+                        <tr key={u.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{u.name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{typeLabel}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{u.capacity} أشخاص</td>
+                          <td className="px-4 py-3">
+                            {u.status === 'available' && (
+                              <Badge variant="success">متاح 🟢</Badge>
+                            )}
+                            {u.status === 'occupied' && (
+                              <Badge variant="info">مشغول 🔵</Badge>
+                            )}
+                            {u.status === 'maintenance' && (
+                              <Badge variant="warning">صيانة 🔴</Badge>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate" title={u.notes || ''}>
+                            {u.notes || '-'}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

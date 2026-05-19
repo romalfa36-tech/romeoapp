@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { LucideIcon } from 'lucide-react';
 
 // Button Component
@@ -123,11 +124,20 @@ interface CardProps {
 }
 
 export const Card: React.FC<CardProps> = ({ children, className = '', onClick }) => {
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`w-full text-start bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 block ${className}`}
+        onClick={onClick}
+      >
+        {children}
+      </button>
+    );
+  }
+
   return (
-    <div
-      className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} ${className}`}
-      onClick={onClick}
-    >
+    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 ${className}`}>
       {children}
     </div>
   );
@@ -174,8 +184,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     lg: 'max-w-2xl',
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
         <div className={`relative bg-white rounded-2xl shadow-xl w-full ${sizes[size]} p-6 slide-up`}>
@@ -193,7 +203,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
