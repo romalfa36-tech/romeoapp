@@ -88,10 +88,43 @@ export const App: React.FC = () => {
     return <Login />;
   }
 
-  const Navigation = () => (
-    <>
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'Dashboard':
+        return <Dashboard onNavigate={handleNavigate} />;
+      case 'Projects':
+        return <Projects onNavigate={handleNavigate} />;
+      case 'ProjectDetails':
+        return selectedProjectId ? (
+          <ProjectDetails projectId={selectedProjectId} onBack={handleBackFromProject} />
+        ) : (
+          <Projects onNavigate={handleNavigate} />
+        );
+      case 'Finance':
+        return canViewFinance ? <Finance /> : <Dashboard onNavigate={handleNavigate} />;
+      case 'Transactions':
+        return <Transactions onNavigate={handleNavigate} />;
+      case 'Reports':
+        return (isAdmin || canViewFinance) ? <Reports /> : <Dashboard onNavigate={handleNavigate} />;
+      case 'Clients':
+        return isAdmin ? <Clients /> : <Dashboard onNavigate={handleNavigate} />;
+      case 'Stock':
+        return isAdmin ? <Stock /> : <Dashboard onNavigate={handleNavigate} />;
+      case 'Units':
+        return isAdmin ? <Units /> : <Dashboard onNavigate={handleNavigate} />;
+      case 'Users':
+        return isAdmin ? <UsersManagement /> : <Dashboard onNavigate={handleNavigate} />;
+      case 'Profile':
+        return <Profile onLogout={handleLogout} />;
+      default:
+        return <Dashboard onNavigate={handleNavigate} />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
       {/* Desktop Sidebar - Dynamic Right/Left side for RTL/LTR */}
-      <aside className={`hidden md:flex flex-col w-64 bg-white h-screen fixed top-0 z-40 ${
+      <aside className={`hidden md:flex flex-col w-64 bg-white h-screen fixed top-0 z-50 ${
         language === 'ar' ? 'right-0 border-l border-gray-200' : 'left-0 border-r border-gray-200'
       }`}>
         {/* Logo */}
@@ -173,7 +206,7 @@ export const App: React.FC = () => {
         <div className="p-4 border-t space-y-1">
           <button
             onClick={() => handleNavigate('Profile')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+            className={`w-full flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
               currentPage === 'Profile'
                 ? 'bg-gray-100 text-gray-900'
                 : 'text-gray-600 hover:bg-gray-100'
@@ -184,7 +217,7 @@ export const App: React.FC = () => {
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
+            className="w-full flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
           >
             <LogOut className="w-5 h-5 pointer-events-none" />
             <span className="font-medium pointer-events-none">{t('nav.logout')}</span>
@@ -193,7 +226,7 @@ export const App: React.FC = () => {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
         <div className="flex items-center justify-around py-2">
           {navItems.slice(0, 4).map((item) => {
             const Icon = item.icon;
@@ -214,46 +247,6 @@ export const App: React.FC = () => {
           })}
         </div>
       </nav>
-    </>
-  );
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'Dashboard':
-        return <Dashboard onNavigate={handleNavigate} />;
-      case 'Projects':
-        return <Projects onNavigate={handleNavigate} />;
-      case 'ProjectDetails':
-        return selectedProjectId ? (
-          <ProjectDetails projectId={selectedProjectId} onBack={handleBackFromProject} />
-        ) : (
-          <Projects onNavigate={handleNavigate} />
-        );
-      case 'Finance':
-        return canViewFinance ? <Finance /> : <Dashboard onNavigate={handleNavigate} />;
-      case 'Transactions':
-        return <Transactions onNavigate={handleNavigate} />;
-      case 'Reports':
-        return (isAdmin || canViewFinance) ? <Reports /> : <Dashboard onNavigate={handleNavigate} />;
-      case 'Clients':
-        return isAdmin ? <Clients /> : <Dashboard onNavigate={handleNavigate} />;
-      case 'Stock':
-        return isAdmin ? <Stock /> : <Dashboard onNavigate={handleNavigate} />;
-      case 'Units':
-        return isAdmin ? <Units /> : <Dashboard onNavigate={handleNavigate} />;
-      case 'Users':
-        return isAdmin ? <UsersManagement /> : <Dashboard onNavigate={handleNavigate} />;
-      case 'Profile':
-        return <Profile onLogout={handleLogout} />;
-      default:
-        return <Dashboard onNavigate={handleNavigate} />;
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <Navigation />
 
       {/* Custom click-safe Toasts overlay */}
       {toasts.length > 0 && (
@@ -283,7 +276,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Main Content - dynamic margin to avoid sidebar overlap */}
-      <main className={`pb-20 md:pb-0 ${language === 'ar' ? 'md:mr-64' : 'md:ml-64'}`}>
+      <main className={`relative z-10 pb-20 md:pb-0 ${language === 'ar' ? 'md:mr-64' : 'md:ml-64'}`}>
         {/* Top Header (Mobile) */}
         <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
