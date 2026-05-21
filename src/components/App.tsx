@@ -181,10 +181,10 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       {/* Desktop Sidebar - Dynamic Right/Left side for RTL/LTR */}
-      <aside className={`hidden md:flex flex-col w-64 bg-white h-screen fixed top-0 z-50 ${
-        language === 'ar' ? 'right-0 border-l border-gray-200' : 'left-0 border-r border-gray-200'
+      <aside className={`hidden md:flex flex-col w-64 h-screen fixed top-0 z-50 bg-white/60 backdrop-blur-2xl border-gray-200/50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${
+        language === 'ar' ? 'right-0 border-l' : 'left-0 border-r'
       }`}>
         {/* Logo */}
         <div className="p-6 border-b">
@@ -346,7 +346,7 @@ export const App: React.FC = () => {
       {/* Main Content - dynamic margin to avoid sidebar overlap */}
       <main className={`relative z-10 pb-20 md:pb-0 ${language === 'ar' ? 'md:mr-64' : 'md:ml-64'}`}>
         {/* Top Header (Mobile) */}
-        <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+        <header className="md:hidden bg-white/60 backdrop-blur-2xl border-b border-gray-200/50 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
               <span className="text-white font-bold text-sm">BF</span>
