@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS notifications (
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Allow select/modify policies for everyone and authenticated users
+DROP POLICY IF EXISTS "Notifications are viewable by everyone" ON notifications;
+DROP POLICY IF EXISTS "Notifications can be modified by authenticated users" ON notifications;
 CREATE POLICY "Notifications are viewable by everyone" ON notifications FOR SELECT USING (true);
 CREATE POLICY "Notifications can be modified by authenticated users" ON notifications FOR ALL USING (true);
 
