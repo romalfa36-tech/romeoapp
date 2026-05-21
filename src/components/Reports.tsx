@@ -437,7 +437,7 @@ export const Reports: React.FC<ReportsProps> = () => {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-[#1E3A5F] h-2 rounded-full transition-all"
+                        className="bg-indigo-600 h-2 rounded-full transition-all"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
@@ -549,7 +549,7 @@ export const Reports: React.FC<ReportsProps> = () => {
               </div>
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <p className="text-xs text-gray-500">القيمة الإجمالية للمخزون</p>
-                <p className="text-xl font-bold text-[#1E3A5F] mt-1">
+                <p className="text-xl font-bold text-indigo-600 mt-1">
                   {formatCurrency(stockItems.reduce((sum, item) => sum + (item.quantity * item.costPerUnit), 0))}
                 </p>
               </div>
@@ -597,7 +597,7 @@ export const Reports: React.FC<ReportsProps> = () => {
                           <td className="px-4 py-3 text-sm text-gray-500">{item.minQuantity}</td>
                           <td className="px-4 py-3 text-sm text-gray-600">{item.unit}</td>
                           <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(item.costPerUnit)}</td>
-                          <td className="px-4 py-3 text-sm font-semibold text-[#1E3A5F]">
+                          <td className="px-4 py-3 text-sm font-semibold text-indigo-600">
                             {formatCurrency(item.quantity * item.costPerUnit)}
                           </td>
                           <td className="px-4 py-3">
@@ -646,7 +646,7 @@ export const Reports: React.FC<ReportsProps> = () => {
               </div>
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <p className="text-xs text-gray-500 font-semibold">نسبة الإشغال</p>
-                <p className="text-xl font-bold text-[#1E3A5F] mt-1">
+                <p className="text-xl font-bold text-indigo-600 mt-1">
                   {units.length > 0
                     ? ((units.filter(u => u.status === 'occupied').length / units.length) * 100).toFixed(1)
                     : '0.0'}%
@@ -735,8 +735,8 @@ export const Reports: React.FC<ReportsProps> = () => {
         {/* TXT Summary */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => exportReport('summary')}>
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-[#1E3A5F]/10 rounded-xl">
-              <BarChart3 className="w-6 h-6 text-[#1E3A5F]" />
+            <div className="p-3 bg-indigo-600/10 rounded-xl">
+              <BarChart3 className="w-6 h-6 text-indigo-600" />
             </div>
             <div>
               <p className="font-medium text-gray-900">الملخص المالي TXT</p>

@@ -72,13 +72,13 @@ export const UsersManagement: React.FC<UsersManagementProps> = () => {
             placeholder="البحث عن موظف..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pr-10 pl-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            className="w-full pr-10 pl-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
           />
         </div>
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
         >
           <option value="all">جميع الأدوار</option>
           <option value="admin">مدير</option>
@@ -90,7 +90,7 @@ export const UsersManagement: React.FC<UsersManagementProps> = () => {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <Card className="text-center">
-          <Users className="w-6 h-6 text-[#1E3A5F] mx-auto mb-2" />
+          <Users className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
           <p className="text-2xl font-bold text-gray-900">{users.length}</p>
           <p className="text-sm text-gray-500">إجمالي الأعضاء</p>
         </Card>
@@ -128,7 +128,7 @@ export const UsersManagement: React.FC<UsersManagementProps> = () => {
 
               <div className="flex items-start gap-4">
                 {/* Avatar */}
-                <div className="w-12 h-12 bg-[#1E3A5F] rounded-full flex items-center justify-center text-white font-bold">
+                <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
                   {user.name.charAt(0)}
                 </div>
 
@@ -328,7 +328,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSave, pe
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
             required
           />
         </div>
@@ -339,7 +339,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSave, pe
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
             required
           />
         </div>
@@ -352,7 +352,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSave, pe
               type="text"
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+              className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               placeholder="اسم المستخدم للدخول"
               required={!user}
             />
@@ -369,7 +369,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSave, pe
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+              className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               placeholder={user ? 'اتركها فارغة للحفاظ على كلمة المرور' : '••••••••'}
               required={!user}
             />
@@ -381,7 +381,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSave, pe
           <select
             value={formData.role}
             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
           >
             <option value="employee">👤 موظف</option>
             <option value="accountant">📊 محاسب (يرى جميع المعاملات المالية)</option>
@@ -400,7 +400,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSave, pe
                   onClick={() => togglePermission(perm.value)}
                   className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
                     formData.permissions.includes(perm.value)
-                      ? 'bg-[#1E3A5F] text-white'
+                      ? 'bg-indigo-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >

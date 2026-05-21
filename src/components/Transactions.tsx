@@ -121,13 +121,13 @@ export const Transactions: React.FC<TransactionsProps> = ({ onNavigate }) => {
             placeholder="البحث..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pr-10 pl-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            className="w-full pr-10 pl-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
           />
         </div>
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
         >
           <option value="all">جميع الفئات</option>
           {CATEGORIES.map(c => (
@@ -137,7 +137,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ onNavigate }) => {
         <select
           value={projectFilter}
           onChange={(e) => setProjectFilter(e.target.value)}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
         >
           <option value="all">جميع المشاريع</option>
           {projects.map(p => (
@@ -149,7 +149,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ onNavigate }) => {
           type="month"
           value={dateFilter}
           onChange={(e) => setDateFilter(e.target.value)}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
         />
       </div>
 
@@ -419,7 +419,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
           <textarea
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
             rows={2}
           />
         </div>

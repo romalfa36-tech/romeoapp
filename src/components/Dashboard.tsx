@@ -53,7 +53,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="text-left">
           <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
             isAdmin 
-              ? 'bg-[#1E3A5F]/10 text-[#1E3A5F]' 
+              ? 'bg-indigo-100 text-indigo-700' 
               : currentUser?.role === 'accountant' 
                 ? 'bg-blue-100 text-blue-700' 
                 : 'bg-green-100 text-green-700'
@@ -73,7 +73,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           label={txt('إجمالي المشاريع', 'Total Projects')}
           value={projectStats.total}
           icon={Building2}
-          color="text-[#1E3A5F]"
+          color="text-indigo-600"
         />
         <StatCard
           label={txt('المشاريع النشطة', 'Active Projects')}
@@ -96,7 +96,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       {/* Balance Card */}
-      <Card className="bg-gradient-to-l from-[#1E3A5F] to-[#2D7D46] text-white">
+      <Card className="bg-gradient-to-l from-slate-900 via-indigo-900 to-slate-800 text-white shadow-xl">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-white/80 text-sm">{txt('الرصيد الحالي', 'Current Balance')}</p>
@@ -112,7 +112,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       {(isAdmin || isEmployee) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="cursor-pointer hover:shadow-md transition-shadow animate-hover" onClick={() => onNavigate('Projects')}>
-            <Plus className="w-6 h-6 text-[#1E3A5F] mb-2" />
+            <Plus className="w-6 h-6 text-indigo-600 mb-2" />
             <p className="font-medium text-gray-900">{txt('مشروع جديد', 'New Project')}</p>
             <p className="text-sm text-gray-500">{txt('إضافة مشروع للشبكة', 'Add project to network')}</p>
           </Card>
@@ -144,7 +144,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             <h2 className="text-lg font-semibold text-gray-900">{txt('أحدث المعاملات', 'Recent Transactions')}</h2>
             <button
               onClick={() => onNavigate('Transactions')}
-              className="text-sm text-[#1E3A5F] hover:underline font-medium"
+              className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
             >
               {txt('عرض الكل', 'View All')}
             </button>
@@ -186,7 +186,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             <h2 className="text-lg font-semibold text-gray-900">{txt('المشاريع النشطة', 'Active Projects')}</h2>
             <button
               onClick={() => onNavigate('Projects')}
-              className="text-sm text-[#1E3A5F] hover:underline font-medium"
+              className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
             >
               {txt('عرض الكل', 'View All')}
             </button>

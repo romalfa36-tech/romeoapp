@@ -11,8 +11,12 @@ CREATE TABLE IF NOT EXISTS notifications (
     message TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
     created_by TEXT,
+    created_by_role TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Safe migration: Add column if the table already existed
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS created_by_role TEXT;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;

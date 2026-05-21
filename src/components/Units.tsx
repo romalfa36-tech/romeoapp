@@ -114,14 +114,14 @@ export const Units: React.FC = () => {
               placeholder="البحث عن وحدة..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+              className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
             />
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => setStatusFilter('all')}
               className={`px-4 py-2 rounded-xl transition-colors ${
-                statusFilter === 'all' ? 'bg-[#1E3A5F] text-white' : 'bg-gray-100 text-gray-600'
+                statusFilter === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
               الكل
@@ -239,7 +239,7 @@ export const Units: React.FC = () => {
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               placeholder="مثال: غرفة تبديل 1"
             />
           </div>
@@ -250,7 +250,7 @@ export const Units: React.FC = () => {
               <select
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               >
                 {UNIT_TYPES.map((type) => (
                   <option key={type.value} value={type.value}>{type.label}</option>
@@ -262,7 +262,7 @@ export const Units: React.FC = () => {
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               >
                 <option value="available">متاح</option>
                 <option value="occupied">مشغول</option>
@@ -278,7 +278,7 @@ export const Units: React.FC = () => {
               min="0"
               value={formData.capacity}
               onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
             />
           </div>
 
@@ -288,7 +288,7 @@ export const Units: React.FC = () => {
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
             />
           </div>
 

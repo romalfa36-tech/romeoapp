@@ -23,11 +23,11 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
 
   const variants = {
-    primary: 'bg-[#1E3A5F] text-white hover:bg-[#152a45] focus:ring-[#1E3A5F]',
-    secondary: 'border-2 border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white focus:ring-[#1E3A5F]',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-600',
+    primary: 'bg-slate-900 text-white hover:bg-slate-800 focus:ring-slate-900 shadow-md shadow-slate-900/20',
+    secondary: 'border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white focus:ring-indigo-600',
+    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-600 shadow-md shadow-red-600/20',
     ghost: 'text-gray-600 hover:bg-gray-100 focus:ring-gray-300',
-    outline: 'border-2 border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white focus:ring-[#1E3A5F]',
+    outline: 'border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white focus:ring-slate-900',
   };
 
   const sizes = {
@@ -73,7 +73,7 @@ export const Input: React.FC<InputProps> = ({
     <div className="space-y-1">
       {label && <label className="block text-sm font-medium text-gray-700">{label}</label>}
       <input
-        className={`w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent ${
+        className={`w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent ${
           error ? 'border-red-500' : 'border-gray-300'
         } ${className}`}
         {...props}
@@ -102,7 +102,7 @@ export const Select: React.FC<SelectProps> = ({
     <div className="space-y-1">
       {label && <label className="block text-sm font-medium text-gray-700">{label}</label>}
       <select
-        className={`w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent ${
+        className={`w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent ${
           error ? 'border-red-500' : 'border-gray-300'
         } ${className}`}
         {...props}
@@ -128,7 +128,7 @@ export const Card: React.FC<CardProps> = ({ children, className = '', onClick })
     return (
       <button
         type="button"
-        className={`w-full text-start bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 block ${className}`}
+        className={`w-full text-start bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500/20 block ${className}`}
         onClick={onClick}
       >
         {children}
@@ -217,10 +217,10 @@ interface StatCardProps {
   color?: string;
 }
 
-export const StatCard: React.FC<StatCardProps> = ({ label, value, icon: Icon, trend, color = 'text-[#1E3A5F]' }) => {
+export const StatCard: React.FC<StatCardProps> = ({ label, value, icon: Icon, trend, color = 'text-indigo-600' }) => {
   return (
     <Card className="flex items-center gap-4">
-      <div className={`p-3 rounded-xl bg-[#1E3A5F]/10 ${color}`}>
+      <div className={`p-3 rounded-xl bg-indigo-50 ${color}`}>
         <Icon className="w-6 h-6" />
       </div>
       <div className="flex-1">

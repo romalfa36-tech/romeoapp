@@ -39,12 +39,15 @@ export const Login: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1E3A5F] to-[#2D7D46] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 right-0 -mr-20 -mt-20 w-72 h-72 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none"></div>
       <div className="w-full max-w-md">
         {/* Logo & Title */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg mb-4">
-            <span className="text-3xl font-bold text-[#1E3A5F]">BF</span>
+            <span className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-slate-800 bg-clip-text text-transparent">BF</span>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Beeforce</h1>
           <p className="text-white/80">نظام إدارة التموين والإنتاج</p>
@@ -67,7 +70,7 @@ export const Login: React.FC = () => {
                 onClick={() => setLoginMethod('email')}
                 className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
                   loginMethod === 'email'
-                    ? 'bg-white text-[#1E3A5F] shadow-sm'
+                    ? 'bg-white text-indigo-700 shadow-sm font-medium'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -79,7 +82,7 @@ export const Login: React.FC = () => {
                 onClick={() => setLoginMethod('username')}
                 className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
                   loginMethod === 'username'
-                    ? 'bg-white text-[#1E3A5F] shadow-sm'
+                    ? 'bg-white text-indigo-700 shadow-sm font-medium'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -97,7 +100,7 @@ export const Login: React.FC = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent"
+                    className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
                     placeholder="name@company.com"
                     required
                   />
@@ -112,7 +115,7 @@ export const Login: React.FC = () => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent"
+                    className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
                     placeholder="username"
                     required
                   />

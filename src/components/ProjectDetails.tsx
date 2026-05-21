@@ -99,7 +99,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBac
       </div>
 
       {/* Project Info Card */}
-      <Card className="bg-gradient-to-l from-[#1E3A5F]/5 to-transparent">
+      <Card className="bg-gradient-to-l from-indigo-600/5 to-transparent">
         <div className="grid md:grid-cols-3 gap-6">
           <div>
             <p className="text-sm text-gray-500 mb-1">{txt('تاريخ التصوير', 'Shoot Dates')}</p>
@@ -264,7 +264,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBac
       <Card className="border border-gray-100 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between mb-4 border-b pb-3">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <span className="p-1.5 bg-[#1E3A5F]/10 text-[#1E3A5F] rounded-lg">
+            <span className="p-1.5 bg-indigo-600/10 text-indigo-600 rounded-lg">
               <User className="w-5 h-5" />
             </span>
             {txt('ملاحظات وتعليقات الفريق', 'Team Comments & Remarks')}
@@ -279,7 +279,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBac
           {project.comments && project.comments.length > 0 ? (
             project.comments.map((comment) => (
               <div key={comment.id} className="flex gap-3 items-start p-3 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100/50 transition-colors">
-                <div className="w-9 h-9 rounded-full bg-[#1E3A5F] text-white flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0">
                   {(comment.userName || '?').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 space-y-1">
@@ -319,14 +319,14 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBac
               onChange={(e) => setCommentText(e.target.value)}
               placeholder={txt('اكتب تعليقاً أو ملاحظة للمشروع...', 'Write a comment or project note...')}
               rows={2}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] text-sm resize-none bg-gray-50/50 hover:bg-white focus:bg-white transition-all shadow-2xs"
+              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 text-sm resize-none bg-gray-50/50 hover:bg-white focus:bg-white transition-all shadow-2xs"
               required
             />
           </div>
           <Button
             type="submit"
             loading={isSubmittingComment}
-            className="h-[48px] px-6 rounded-xl flex items-center justify-center font-semibold bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white shadow-md transition-all active:scale-[0.98]"
+            className="h-[48px] px-6 rounded-xl flex items-center justify-center font-semibold bg-indigo-600 hover:bg-indigo-600/90 text-white shadow-md transition-all active:scale-[0.98]"
           >
             {txt('إرسال', 'Send')}
           </Button>
@@ -498,7 +498,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
           <textarea
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
             rows={2}
           />
         </div>

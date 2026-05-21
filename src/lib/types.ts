@@ -19,6 +19,7 @@ export interface Notification {
   message: string;
   isRead: boolean;
   createdBy?: string;
+  createdByRole?: 'admin' | 'employee' | 'accountant';
   createdAt: string;
   _isRemote?: boolean;
 }

@@ -371,6 +371,7 @@ const convertNotification = (data: any): Notification => ({
   message: data.message || '',
   isRead: data.is_read !== undefined ? data.is_read : false,
   createdBy: data.created_by || '',
+  createdByRole: data.created_by_role || undefined,
   createdAt: data.created_at || new Date().toISOString(),
 });
 
@@ -467,6 +468,7 @@ const notificationToDB = (n: any) => ({
   message: n.message,
   is_read: n.isRead,
   created_by: n.createdBy || null,
+  created_by_role: n.createdByRole || null,
 });
 
 // Filter data based on user role
@@ -1009,8 +1011,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           try {
             const newNotif = convertNotification(payload.new);
             // Trigger toast alert for everyone except the actor who created it
+            // AND only if it was NOT created by an Admin (unless the logged-in user is also an Admin)
             if (newNotif && newNotif.createdBy !== currentUser?.name) {
-              triggerToast(newNotif.title, newNotif.message);
+              const isAdminAction = newNotif.createdByRole === 'admin';
+              const shouldAlert = currentUser?.role === 'admin' || !isAdminAction;
+              if (shouldAlert) {
+                triggerToast(newNotif.title, newNotif.message);
+              }
             }
           } catch (err) {
             console.error('Error handling realtime notification toast:', err);
@@ -1111,6 +1118,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: generateId(),
       createdAt: new Date().toISOString(),
       createdBy: notification.createdBy || currentUser?.name || 'النظام',
+      createdByRole: notification.createdByRole || (notification.createdBy ? undefined : currentUser?.role) || undefined,
     };
 
     // Prepend to state & localStorage
@@ -1883,7 +1891,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addInvoice,
     updateInvoice,
     deleteInvoice,
-    notifications,
+    notifications: currentUser?.role === 'admin' ? notifications : notifications.filter(n => n.createdByRole !== 'admin'),
     addNotification,
     markAsRead,
     clearNotifications,

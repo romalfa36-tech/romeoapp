@@ -121,7 +121,7 @@ export const Stock: React.FC = () => {
             placeholder="البحث في المخزون..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+            className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
           />
         </div>
       </Card>
@@ -211,7 +211,7 @@ export const Stock: React.FC = () => {
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
             />
           </div>
 
@@ -221,7 +221,7 @@ export const Stock: React.FC = () => {
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               >
                 <option value="">اختر الفئة</option>
                 {categories.map((cat) => (
@@ -234,7 +234,7 @@ export const Stock: React.FC = () => {
               <select
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               >
                 <option value="">اختر الوحدة</option>
                 {units.map((u) => (
@@ -252,7 +252,7 @@ export const Stock: React.FC = () => {
                 min="0"
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               />
             </div>
             <div>
@@ -262,7 +262,7 @@ export const Stock: React.FC = () => {
                 min="0"
                 value={formData.minQuantity}
                 onChange={(e) => setFormData({ ...formData, minQuantity: Number(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               />
             </div>
           </div>
@@ -276,7 +276,7 @@ export const Stock: React.FC = () => {
                 step="0.01"
                 value={formData.costPerUnit}
                 onChange={(e) => setFormData({ ...formData, costPerUnit: Number(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               />
             </div>
             <div>
@@ -285,7 +285,7 @@ export const Stock: React.FC = () => {
                 type="text"
                 value={formData.supplier}
                 onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               />
             </div>
           </div>
@@ -296,7 +296,7 @@ export const Stock: React.FC = () => {
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20"
+              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
             />
           </div>
 

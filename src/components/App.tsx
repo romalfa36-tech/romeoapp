@@ -69,7 +69,7 @@ class PageErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
               this.setState({ hasError: false, error: null });
               this.props.fallbackNavigate?.();
             }}
-            className="px-6 py-3 bg-[#1E3A5F] text-white rounded-xl font-medium hover:bg-[#1E3A5F]/90 transition-colors"
+            className="px-6 py-3 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20"
           >
             إعادة المحاولة
           </button>
@@ -189,7 +189,7 @@ export const App: React.FC = () => {
         {/* Logo */}
         <div className="p-6 border-b">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#1E3A5F] rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-600/20">
               <span className="text-white font-bold">BF</span>
             </div>
             <div>
@@ -202,7 +202,7 @@ export const App: React.FC = () => {
         {/* User Info */}
         <div className="p-4 border-b">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#1E3A5F] rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-slate-800 rounded-full flex items-center justify-center text-white font-bold shadow-md">
               {currentUser?.name.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
@@ -224,7 +224,7 @@ export const App: React.FC = () => {
                 onClick={() => handleNavigate(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
                   isActive
-                    ? 'bg-[#1E3A5F] text-white'
+                    ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
@@ -248,7 +248,7 @@ export const App: React.FC = () => {
                     onClick={() => handleNavigate(item.id)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
                       isActive
-                        ? 'bg-[#1E3A5F] text-white'
+                        ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
@@ -296,7 +296,7 @@ export const App: React.FC = () => {
                 key={item.id}
                 onClick={() => handleNavigate(item.id)}
                 className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
-                  isActive ? 'text-[#1E3A5F]' : 'text-gray-400'
+                  isActive ? 'text-indigo-600 font-medium' : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -307,7 +307,7 @@ export const App: React.FC = () => {
           <button
             onClick={() => handleNavigate('Profile')}
             className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
-              currentPage === 'Profile' ? 'text-[#1E3A5F]' : 'text-gray-400'
+              currentPage === 'Profile' ? 'text-indigo-600 font-medium' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
             <User className="w-5 h-5" />
@@ -322,10 +322,10 @@ export const App: React.FC = () => {
           {toasts.map((t) => (
             <div
               key={t.id}
-              className="bg-white/95 backdrop-blur-md border border-gray-100 rounded-xl shadow-xl p-4 pointer-events-auto flex items-start gap-3 fade-in border-r-4 border-r-[#1E3A5F] max-w-md w-full"
+              className="bg-white/95 backdrop-blur-md border border-gray-100 rounded-xl shadow-xl p-4 pointer-events-auto flex items-start gap-3 fade-in border-r-4 border-r-indigo-600 max-w-md w-full"
               style={{ direction: 'rtl' }}
             >
-              <div className="w-8 h-8 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center text-[#1E3A5F] flex-shrink-0 pointer-events-none">
+              <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 flex-shrink-0 pointer-events-none">
                 <Bell className="w-4 h-4 pointer-events-none" />
               </div>
               <div className="flex-1 min-w-0 text-right pointer-events-none">
@@ -348,7 +348,7 @@ export const App: React.FC = () => {
         {/* Top Header (Mobile) */}
         <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#1E3A5F] rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
               <span className="text-white font-bold text-sm">BF</span>
             </div>
             <span className="font-bold text-gray-900">Beeforce</span>
