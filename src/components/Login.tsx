@@ -47,7 +47,7 @@ export const Login: React.FC = () => {
             <span className="text-3xl font-bold text-[#1E3A5F]">BF</span>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Beeforce</h1>
-          <p className="text-white/80">نظام إدارة التمويش والإنتاج</p>
+          <p className="text-white/80">نظام إدارة التموين والإنتاج</p>
         </div>
 
         {/* Login Form */}

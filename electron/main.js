@@ -78,7 +78,7 @@ async function createWindow(port) {
       contextIsolation: true,
       webSecurity: false,  // Disable CORS enforcement
     },
-    title: 'Beeforce - نظام إدارة التمويش',
+    title: 'Beeforce - نظام إدارة التموين',
     show: false,
     backgroundColor: '#F8FAFC',
   });

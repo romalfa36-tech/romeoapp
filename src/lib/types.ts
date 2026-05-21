@@ -18,7 +18,9 @@ export interface Notification {
   title: string;
   message: string;
   isRead: boolean;
+  createdBy?: string;
   createdAt: string;
+  _isRemote?: boolean;
 }
 
 // New types for Clients

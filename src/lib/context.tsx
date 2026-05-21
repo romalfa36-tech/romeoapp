@@ -253,6 +253,7 @@ const CLIENTS_KEY = 'beeforce_clients';
 const STOCK_KEY = 'beeforce_stock';
 const UNITS_KEY = 'beeforce_units';
 const INVOICES_KEY = 'beeforce_invoices';
+const NOTIFICATIONS_KEY = 'beeforce_notifications';
 
 // Helper to convert Supabase user
 const convertUser = (data: any): User => ({
@@ -362,6 +363,17 @@ const convertInvoice = (data: any): Invoice => ({
   createdAt: data.created_at || new Date().toISOString(),
 });
 
+// Helper to convert Supabase notification
+const convertNotification = (data: any): Notification => ({
+  id: data.id || '',
+  type: data.type || 'general',
+  title: data.title || '',
+  message: data.message || '',
+  isRead: data.is_read !== undefined ? data.is_read : false,
+  createdBy: data.created_by || '',
+  createdAt: data.created_at || new Date().toISOString(),
+});
+
 // Sync map functions (explicit fields)
 const projectToDB = (p: any) => ({
   name: p.name,
@@ -449,6 +461,14 @@ const userToDB = (u: any) => ({
   is_active: u.isActive,
 });
 
+const notificationToDB = (n: any) => ({
+  type: n.type,
+  title: n.title,
+  message: n.message,
+  is_read: n.isRead,
+  created_by: n.createdBy || null,
+});
+
 // Filter data based on user role
 const filterByUserAccess = <T extends { createdBy?: string; assignedTo?: string[] }>(
   items: T[],
@@ -484,7 +504,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setToasts(prev => [...prev, { id, title, message }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
+    }, 10000);
   };
 
   const removeToast = (id: string) => {
@@ -750,6 +770,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error('Fetch invoices error:', err);
       }
 
+      // 8. Fetch Notifications
+      try {
+        const { data: notificationsData, error: nErr } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
+        if (!nErr && notificationsData) {
+          const parsed = notificationsData.map(convertNotification).map(n => ({ ...n, _isRemote: true } as Notification));
+          
+          const localStr = localStorage.getItem(NOTIFICATIONS_KEY);
+          const localNotifications: Notification[] = localStr ? JSON.parse(localStr) : [];
+          
+          // Auto-push unsynced notifications
+          const unsynced = localNotifications.filter(ln => isLocalNew(ln) && !parsed.some(sn => sn.id === ln.id));
+          for (const un of unsynced) {
+            try {
+              await supabase.from('notifications').insert([{
+                id: un.id,
+                ...notificationToDB(un)
+              }]);
+            } catch (e) {
+              console.error('Auto-push notification failed:', un.id, e);
+            }
+          }
+          
+          const merged = [...unsynced, ...parsed];
+          const unique = Array.from(new Map(merged.map(n => [n.id, n])).values());
+          
+          // Sort by date descending
+          unique.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          
+          setNotifications(unique);
+          localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(unique));
+        }
+      } catch (err) {
+        console.error('Fetch notifications error:', err);
+      }
+
       return true;
     } catch (err) {
       console.error('Supabase syncData error:', err);
@@ -916,6 +971,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const storedInvoices = localStorage.getItem(INVOICES_KEY);
         if (storedInvoices) setInvoices(JSON.parse(storedInvoices));
 
+        const storedNotifications = localStorage.getItem(NOTIFICATIONS_KEY);
+        if (storedNotifications) setNotifications(JSON.parse(storedNotifications));
+
         const storedUser = localStorage.getItem(CURRENT_USER_KEY);
         if (storedUser) {
           setCurrentUser(JSON.parse(storedUser));
@@ -1034,22 +1092,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Notification functions
-  const addNotification = (notification: Omit<Notification, 'id' | 'createdAt'>) => {
+  const addNotification = async (notification: Omit<Notification, 'id' | 'createdAt'>) => {
     const newNotification: Notification = {
       ...notification,
       id: generateId(),
       createdAt: new Date().toISOString(),
+      createdBy: notification.createdBy || currentUser?.name || 'النظام',
     };
-    setNotifications(prev => [newNotification, ...prev]);
+
+    // Prepend to state & localStorage
+    setNotifications(prev => {
+      const updated = [newNotification, ...prev];
+      localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+
     triggerToast(newNotification.title, newNotification.message);
+
+    try {
+      await supabase.from('notifications').insert([{
+        id: newNotification.id,
+        ...notificationToDB(newNotification)
+      }]);
+      await syncData();
+    } catch (err) {
+      console.error('Supabase addNotification error:', err);
+    }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  const markAsRead = async (id: string) => {
+    setNotifications(prev => {
+      const updated = prev.map(n => n.id === id ? { ...n, isRead: true } : n);
+      localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+
+    try {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+      await syncData();
+    } catch (err) {
+      console.error('Supabase markAsRead error:', err);
+    }
   };
 
-  const clearNotifications = () => {
+  const clearNotifications = async () => {
     setNotifications([]);
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify([]));
+
+    try {
+      await supabase.from('notifications').delete().neq('id', '');
+      await syncData();
+    } catch (err) {
+      console.error('Supabase clearNotifications error:', err);
+    }
   };
 
   // User functions
@@ -1063,6 +1158,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUsers(newUsers);
     localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
 
+    addNotification({
+      type: 'general',
+      title: 'موظف جديد',
+      message: `قام ${currentUser?.name || 'مدير'} بإضافة موظف جديد: ${newUser.name}`,
+      isRead: false,
+    });
+
     try {
       await supabase.from('users').insert([{
         id: newUser.id,
@@ -1075,6 +1177,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateUser = async (id: string, userData: Partial<User>) => {
+    const targetUser = users.find(u => u.id === id);
     const newUsers = users.map(u => u.id === id ? { ...u, ...userData } : u);
     setUsers(newUsers);
     localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
@@ -1084,6 +1187,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCurrentUser(updatedUser);
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
     }
+
+    addNotification({
+      type: 'general',
+      title: 'تعديل موظف',
+      message: `قام ${currentUser?.name || 'مدير'} بتعديل بيانات الموظف: ${targetUser?.name || id}`,
+      isRead: false,
+    });
 
     try {
       const dbData: any = {};
@@ -1102,9 +1212,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteUser = async (id: string) => {
+    const targetUser = users.find(u => u.id === id);
     const newUsers = users.filter(u => u.id !== id);
     setUsers(newUsers);
     localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
+
+    addNotification({
+      type: 'general',
+      title: 'حذف موظف',
+      message: `قام ${currentUser?.name || 'مدير'} بحذف الموظف: ${targetUser?.name || id}`,
+      isRead: false,
+    });
 
     try {
       await supabase.from('users').delete().eq('id', id);
@@ -1155,9 +1273,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateProject = async (id: string, projectData: Partial<Project>) => {
+    const targetProject = projects.find(p => p.id === id);
     const newProjects = projects.map(p => p.id === id ? { ...p, ...projectData, updatedAt: new Date().toISOString() } : p);
     setProjects(newProjects);
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects));
+
+    addNotification({
+      type: 'project',
+      title: 'تعديل مشروع',
+      message: `قام ${currentUser?.name || 'مستخدم'} بتعديل المشروع: ${targetProject?.name || id}`,
+      isRead: false,
+    });
 
     try {
       const dbData: any = {};
@@ -1182,9 +1308,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteProject = async (id: string) => {
+    const targetProject = projects.find(p => p.id === id);
     const newProjects = projects.filter(p => p.id !== id);
     setProjects(newProjects);
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects));
+
+    addNotification({
+      type: 'project',
+      title: 'حذف مشروع',
+      message: `قام ${currentUser?.name || 'مستخدم'} بحذف المشروع: ${targetProject?.name || id}`,
+      isRead: false,
+    });
 
     try {
       const { error } = await supabase.from('projects').delete().eq('id', id);
@@ -1255,7 +1389,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addNotification({
       type: 'transaction',
       title: 'معاملة جديدة',
-      message: `تم إضافة معاملة: ${transaction.description}`,
+      message: `قام ${currentUser?.name || 'مستخدم'} بإضافة معاملة: ${transaction.description}`,
       isRead: false,
     });
 
@@ -1271,9 +1405,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateTransaction = async (id: string, transactionData: Partial<Transaction>) => {
+    const targetTransaction = transactions.find(t => t.id === id);
     const newTransactions = transactions.map(t => t.id === id ? { ...t, ...transactionData } : t);
     setTransactions(newTransactions);
     localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
+
+    addNotification({
+      type: 'transaction',
+      title: 'تعديل معاملة',
+      message: `قام ${currentUser?.name || 'مستخدم'} بتعديل المعاملة: ${targetTransaction?.description || id}`,
+      isRead: false,
+    });
 
     try {
       const dbData: any = {};
@@ -1298,9 +1440,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteTransaction = async (id: string) => {
+    const targetTransaction = transactions.find(t => t.id === id);
     const newTransactions = transactions.filter(t => t.id !== id);
     setTransactions(newTransactions);
     localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
+
+    addNotification({
+      type: 'transaction',
+      title: 'حذف معاملة',
+      message: `قام ${currentUser?.name || 'مستخدم'} بحذف المعاملة: ${targetTransaction?.description || id}`,
+      isRead: false,
+    });
 
     try {
       await supabase.from('transactions').delete().eq('id', id);
@@ -1321,6 +1471,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setClients(newClients);
     localStorage.setItem(CLIENTS_KEY, JSON.stringify(newClients));
 
+    addNotification({
+      type: 'general',
+      title: 'عميل جديد',
+      message: `قام ${currentUser?.name || 'مستخدم'} بإضافة عميل جديد: ${newClient.name}`,
+      isRead: false,
+    });
+
     try {
       await supabase.from('clients').insert([{
         id: newClient.id,
@@ -1333,9 +1490,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateClient = async (id: string, clientData: Partial<Client>) => {
+    const targetClient = clients.find(c => c.id === id);
     const newClients = clients.map(c => c.id === id ? { ...c, ...clientData } : c);
     setClients(newClients);
     localStorage.setItem(CLIENTS_KEY, JSON.stringify(newClients));
+
+    addNotification({
+      type: 'general',
+      title: 'تعديل عميل',
+      message: `قام ${currentUser?.name || 'مستخدم'} بتعديل بيانات العميل: ${targetClient?.name || id}`,
+      isRead: false,
+    });
 
     try {
       const dbData: any = {};
@@ -1354,9 +1519,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteClient = async (id: string) => {
+    const targetClient = clients.find(c => c.id === id);
     const newClients = clients.filter(c => c.id !== id);
     setClients(newClients);
     localStorage.setItem(CLIENTS_KEY, JSON.stringify(newClients));
+
+    addNotification({
+      type: 'general',
+      title: 'حذف عميل',
+      message: `قام ${currentUser?.name || 'مستخدم'} بحذف العميل: ${targetClient?.name || id}`,
+      isRead: false,
+    });
 
     try {
       await supabase.from('clients').delete().eq('id', id);
@@ -1377,6 +1550,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setStockItems(newStock);
     localStorage.setItem(STOCK_KEY, JSON.stringify(newStock));
 
+    addNotification({
+      type: 'general',
+      title: 'إضافة مخزون',
+      message: `قام ${currentUser?.name || 'مستخدم'} بإضافة مادة للمخزون: ${newItem.name}`,
+      isRead: false,
+    });
+
     try {
       await supabase.from('stock_items').insert([{
         id: newItem.id,
@@ -1389,6 +1569,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateStockItem = async (id: string, itemData: Partial<StockItem>) => {
+    const targetItem = stockItems.find(i => i.id === id);
     const newStock = stockItems.map(i => i.id === id ? { ...i, ...itemData } : i);
     setStockItems(newStock);
     localStorage.setItem(STOCK_KEY, JSON.stringify(newStock));
@@ -1397,8 +1578,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (updatedItem && updatedItem.quantity <= updatedItem.minQuantity) {
       addNotification({
         type: 'low_stock',
-        title: 'تنبيه مخزون',
-        message: `المادة "${updatedItem.name}" وصلت للحد الأدنى`,
+        title: 'تنبيه مخزون منخفض',
+        message: `قام ${currentUser?.name || 'مستخدم'} بتعديل المخزون - المادة "${updatedItem.name}" وصلت للحد الأدنى (${updatedItem.quantity})`,
+        isRead: false,
+      });
+    } else {
+      addNotification({
+        type: 'general',
+        title: 'تعديل مخزون',
+        message: `قام ${currentUser?.name || 'مستخدم'} بتعديل المادة في المخزون: ${targetItem?.name || id}`,
         isRead: false,
       });
     }
@@ -1422,9 +1610,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteStockItem = async (id: string) => {
+    const targetItem = stockItems.find(i => i.id === id);
     const newStock = stockItems.filter(i => i.id !== id);
     setStockItems(newStock);
     localStorage.setItem(STOCK_KEY, JSON.stringify(newStock));
+
+    addNotification({
+      type: 'general',
+      title: 'حذف من المخزون',
+      message: `قام ${currentUser?.name || 'مستخدم'} بحذف المادة من المخزون: ${targetItem?.name || id}`,
+      isRead: false,
+    });
 
     try {
       await supabase.from('stock_items').delete().eq('id', id);
@@ -1445,6 +1641,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUnits(newUnits);
     localStorage.setItem(UNITS_KEY, JSON.stringify(newUnits));
 
+    addNotification({
+      type: 'general',
+      title: 'وحدة جديدة',
+      message: `قام ${currentUser?.name || 'مستخدم'} بإضافة وحدة جديدة: ${newUnit.name}`,
+      isRead: false,
+    });
+
     try {
       await supabase.from('units').insert([{
         id: newUnit.id,
@@ -1457,9 +1660,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateUnit = async (id: string, unitData: Partial<Unit>) => {
+    const targetUnit = units.find(u => u.id === id);
     const newUnits = units.map(u => u.id === id ? { ...u, ...unitData } : u);
     setUnits(newUnits);
     localStorage.setItem(UNITS_KEY, JSON.stringify(newUnits));
+
+    addNotification({
+      type: 'general',
+      title: 'تعديل وحدة',
+      message: `قام ${currentUser?.name || 'مستخدم'} بتعديل الوحدة: ${targetUnit?.name || id}`,
+      isRead: false,
+    });
 
     try {
       const dbData: any = {};
@@ -1477,9 +1688,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteUnit = async (id: string) => {
+    const targetUnit = units.find(u => u.id === id);
     const newUnits = units.filter(u => u.id !== id);
     setUnits(newUnits);
     localStorage.setItem(UNITS_KEY, JSON.stringify(newUnits));
+
+    addNotification({
+      type: 'general',
+      title: 'حذف وحدة',
+      message: `قام ${currentUser?.name || 'مستخدم'} بحذف الوحدة: ${targetUnit?.name || id}`,
+      isRead: false,
+    });
 
     try {
       await supabase.from('units').delete().eq('id', id);
@@ -1501,6 +1720,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setInvoices(newInvoices);
     localStorage.setItem(INVOICES_KEY, JSON.stringify(newInvoices));
 
+    addNotification({
+      type: 'invoice',
+      title: 'فاتورة جديدة',
+      message: `قام ${currentUser?.name || 'مستخدم'} بإنشاء فاتورة جديدة: ${newInvoice.invoiceNumber} للعميل ${newInvoice.clientName}`,
+      isRead: false,
+    });
+
     try {
       await supabase.from('invoices').insert([{
         id: newInvoice.id,
@@ -1513,9 +1739,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateInvoice = async (id: string, invoiceData: Partial<Invoice>) => {
+    const targetInvoice = invoices.find(i => i.id === id);
     const newInvoices = invoices.map(i => i.id === id ? { ...i, ...invoiceData } : i);
     setInvoices(newInvoices);
     localStorage.setItem(INVOICES_KEY, JSON.stringify(newInvoices));
+
+    addNotification({
+      type: 'invoice',
+      title: 'تعديل فاتورة',
+      message: `قام ${currentUser?.name || 'مستخدم'} بتعديل الفاتورة: ${targetInvoice?.invoiceNumber || id}`,
+      isRead: false,
+    });
 
     try {
       const dbData: any = {};
@@ -1543,9 +1777,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteInvoice = async (id: string) => {
+    const targetInvoice = invoices.find(i => i.id === id);
     const newInvoices = invoices.filter(i => i.id !== id);
     setInvoices(newInvoices);
     localStorage.setItem(INVOICES_KEY, JSON.stringify(newInvoices));
+
+    addNotification({
+      type: 'invoice',
+      title: 'حذف فاتورة',
+      message: `قام ${currentUser?.name || 'مستخدم'} بحذف الفاتورة: ${targetInvoice?.invoiceNumber || id}`,
+      isRead: false,
+    });
 
     try {
       await supabase.from('invoices').delete().eq('id', id);
