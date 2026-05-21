@@ -25,6 +25,7 @@ CREATE POLICY "Notifications can be modified by authenticated users" ON notifica
 
 -- Enable Supabase Realtime Replication for Instant Synced Notifications
 begin;
-  -- Add table to realtime publication
+  -- Drop first if exists to prevent "already member of publication" error, then add safely
+  alter publication supabase_realtime drop table if exists notifications;
   alter publication supabase_realtime add table notifications;
 commit;
