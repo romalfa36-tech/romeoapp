@@ -501,25 +501,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const filteredInvoices = filterByUserAccess(invoices, currentUser?.id || '', isAdmin, isAccountant);
   const lowStockItems = stockItems.filter(item => item.quantity <= item.minQuantity);
 
-  // Synchronize local state with Supabase cloud database
   const syncData = async () => {
-    const isUUID = (str: string) => {
-      if (!str) return false;
-      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-    };
+    const isLocalNew = (item: any) => item && item.id && !item._isRemote;
 
     try {
       // 1. Fetch Users
       try {
         const { data: usersData, error: uErr } = await supabase.from('users').select('*');
         if (!uErr && usersData) {
-          const parsedUsers = usersData.map(convertUser);
+          const parsedUsers = usersData.map(convertUser).map(u => ({ ...u, _isRemote: true } as User));
           
           const localStr = localStorage.getItem(USERS_KEY);
           const localUsers: User[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced users
-          const unsyncedUsers = localUsers.filter(lu => lu && lu.id && isUUID(lu.id) && !parsedUsers.some(su => su.id === lu.id));
+          const unsyncedUsers = localUsers.filter(lu => isLocalNew(lu) && !parsedUsers.some(su => su.id === lu.id));
           for (const uu of unsyncedUsers) {
             try {
               await supabase.from('users').insert([{
@@ -559,13 +555,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.error('Fetch projects error from Supabase:', pErr);
         }
         if (!pErr && projectsData) {
-          const parsed = projectsData.map(convertProject);
+          const parsed = projectsData.map(convertProject).map(p => ({ ...p, _isRemote: true } as Project));
           
           const localStr = localStorage.getItem(PROJECTS_KEY);
           const localProjects: Project[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced projects
-          const unsynced = localProjects.filter(lp => lp && lp.id && isUUID(lp.id) && !parsed.some(sp => sp.id === lp.id));
+          const unsynced = localProjects.filter(lp => isLocalNew(lp) && !parsed.some(sp => sp.id === lp.id));
+          console.log(`[SYNC PROJECTS] localProjects count: ${localProjects.length}, parsed count: ${parsed.length}, unsynced count: ${unsynced.length}`);
           for (const up of unsynced) {
             try {
               const { error: insErr } = await supabase.from('projects').insert([{
@@ -574,6 +571,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               }]);
               if (insErr) {
                 console.error('Auto-push project failed with Supabase DB error:', up.id, insErr);
+              } else {
+                console.log(`[SYNC PROJECTS] Successfully auto-pushed project ${up.id}`);
               }
             } catch (e) {
               console.error('Auto-push project failed with exception:', up.id, e);
@@ -582,6 +581,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           
           const merged = [...unsynced, ...parsed];
           const unique = Array.from(new Map(merged.map(p => [p.id, p])).values());
+          console.log(`[SYNC PROJECTS] merged count: ${merged.length}, unique count: ${unique.length}`);
           
           setProjects(unique);
           localStorage.setItem(PROJECTS_KEY, JSON.stringify(unique));
@@ -594,13 +594,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const { data: transactionsData, error: tErr } = await supabase.from('transactions').select('*').order('date', { ascending: false });
         if (!tErr && transactionsData) {
-          const parsed = transactionsData.map(convertTransaction);
+          const parsed = transactionsData.map(convertTransaction).map(t => ({ ...t, _isRemote: true } as Transaction));
           
           const localStr = localStorage.getItem(TRANSACTIONS_KEY);
           const localTransactions: Transaction[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced transactions
-          const unsynced = localTransactions.filter(lt => lt && lt.id && isUUID(lt.id) && !parsed.some(st => st.id === lt.id));
+          const unsynced = localTransactions.filter(lt => isLocalNew(lt) && !parsed.some(st => st.id === lt.id));
           for (const ut of unsynced) {
             try {
               await supabase.from('transactions').insert([{
@@ -626,13 +626,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const { data: clientsData, error: cErr } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
         if (!cErr && clientsData) {
-          const parsed = clientsData.map(convertClient);
+          const parsed = clientsData.map(convertClient).map(c => ({ ...c, _isRemote: true } as Client));
           
           const localStr = localStorage.getItem(CLIENTS_KEY);
           const localClients: Client[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced clients
-          const unsynced = localClients.filter(lc => lc && lc.id && isUUID(lc.id) && !parsed.some(sc => sc.id === lc.id));
+          const unsynced = localClients.filter(lc => isLocalNew(lc) && !parsed.some(sc => sc.id === lc.id));
           for (const uc of unsynced) {
             try {
               await supabase.from('clients').insert([{
@@ -658,13 +658,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const { data: stockData, error: sErr } = await supabase.from('stock_items').select('*').order('created_at', { ascending: false });
         if (!sErr && stockData) {
-          const parsed = stockData.map(convertStockItem);
+          const parsed = stockData.map(convertStockItem).map(s => ({ ...s, _isRemote: true } as StockItem));
           
           const localStr = localStorage.getItem(STOCK_KEY);
           const localStock: StockItem[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced stock items
-          const unsynced = localStock.filter(ls => ls && ls.id && isUUID(ls.id) && !parsed.some(ss => ss.id === ls.id));
+          const unsynced = localStock.filter(ls => isLocalNew(ls) && !parsed.some(ss => ss.id === ls.id));
           for (const us of unsynced) {
             try {
               await supabase.from('stock_items').insert([{
@@ -690,13 +690,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const { data: unitsData, error: unErr } = await supabase.from('units').select('*').order('created_at', { ascending: false });
         if (!unErr && unitsData) {
-          const parsed = unitsData.map(convertUnit);
+          const parsed = unitsData.map(convertUnit).map(u => ({ ...u, _isRemote: true } as Unit));
           
           const localStr = localStorage.getItem(UNITS_KEY);
           const localUnits: Unit[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced units
-          const unsynced = localUnits.filter(lu => lu && lu.id && isUUID(lu.id) && !parsed.some(su => su.id === lu.id));
+          const unsynced = localUnits.filter(lu => isLocalNew(lu) && !parsed.some(su => su.id === lu.id));
           for (const uu of unsynced) {
             try {
               await supabase.from('units').insert([{
@@ -722,13 +722,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const { data: invoicesData, error: iErr } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
         if (!iErr && invoicesData) {
-          const parsed = invoicesData.map(convertInvoice);
+          const parsed = invoicesData.map(convertInvoice).map(i => ({ ...i, _isRemote: true } as Invoice));
           
           const localStr = localStorage.getItem(INVOICES_KEY);
           const localInvoices: Invoice[] = localStr ? JSON.parse(localStr) : [];
           
           // Auto-push unsynced invoices
-          const unsynced = localInvoices.filter(li => li && li.id && isUUID(li.id) && !parsed.some(si => si.id === li.id));
+          const unsynced = localInvoices.filter(li => isLocalNew(li) && !parsed.some(si => si.id === li.id));
           for (const ui of unsynced) {
             try {
               await supabase.from('invoices').insert([{
@@ -1124,9 +1124,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdBy: currentUser?.name || '',
       assignedTo: project.assignedTo || [],
     };
+    console.log(`[ADD PROJECT] newProject ID: ${newProject.id}`);
     const newProjects = [newProject, ...projects];
     setProjects(newProjects);
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects));
+    console.log(`[ADD PROJECT] Saved to localStorage. Total projects now: ${newProjects.length}`);
     
     addNotification({
       type: 'project',
@@ -1142,7 +1144,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }]);
       if (error) {
         console.error('Supabase addProject DB error:', error);
+      } else {
+        console.log(`[ADD PROJECT] Successfully inserted to Supabase: ${newProject.id}`);
       }
+      console.log(`[ADD PROJECT] Calling syncData...`);
       await syncData();
     } catch (err) {
       console.error('Supabase addProject error:', err);

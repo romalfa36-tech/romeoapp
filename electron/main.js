@@ -58,9 +58,9 @@ function startLocalServer(distPath) {
       }
     });
 
-    // Listen on random available port
-    server.listen(0, '127.0.0.1', () => {
-      const port = server.address().port;
+    // Listen on fixed port to ensure LocalStorage persistence across app restarts
+    const port = 50005;
+    server.listen(port, '127.0.0.1', () => {
       console.log(`[Beeforce] Local server running at http://127.0.0.1:${port}`);
       resolve(port);
     });
