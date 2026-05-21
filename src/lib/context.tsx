@@ -1004,6 +1004,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Setup Supabase Realtime channel subscription to listen to all public database changes
       const channel = supabase
         .channel('db-changes')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+          console.log('Realtime Notification change caught:', payload);
+          try {
+            const newNotif = convertNotification(payload.new);
+            // Trigger toast alert for everyone except the actor who created it
+            if (newNotif && newNotif.createdBy !== currentUser?.name) {
+              triggerToast(newNotif.title, newNotif.message);
+            }
+          } catch (err) {
+            console.error('Error handling realtime notification toast:', err);
+          }
+          syncData();
+        })
         .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
           console.log('Realtime DB change caught:', payload);
           // When any change happens, trigger syncData to update state & LocalStorage
