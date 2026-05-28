@@ -14,7 +14,9 @@ import {
   Building2,
   Package,
   Truck,
-  AlertTriangle
+  AlertTriangle,
+  ZoomIn,
+  X
 } from 'lucide-react';
 
 interface ReportsProps {}
@@ -22,6 +24,7 @@ interface ReportsProps {}
 export const Reports: React.FC<ReportsProps> = () => {
   const { transactions, projects, users, clients, stockItems, units, getFinancialStats, getMonthlySummary } = useApp();
   const [selectedReport, setSelectedReport] = useState('summary');
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const stats = getFinancialStats();
   const monthlySummary = getMonthlySummary();
@@ -115,15 +118,17 @@ export const Reports: React.FC<ReportsProps> = () => {
 
     // 2. Expenses Section
     csvRows.push(['2. قائمة تفاصيل المصروفات']);
-    csvRows.push(['التاريخ', 'المورد/الجهة', 'الوصف', 'الفئة', 'المشروع المرتبط', 'المبلغ (ر.س)']);
+    csvRows.push(['التاريخ', 'المورد/الجهة', 'الوصف', 'الفئة', 'المشروع المرتبط', 'المبلغ (ر.س)', 'روابط الصور']);
     transactions.filter(t => t.debit > 0).forEach(t => {
+      const imgUrls = t.receiptImages ? t.receiptImages.join(' ; ') : '';
       csvRows.push([
         t.date,
         t.supplierName,
         t.description,
         getCategoryLabel(t.category),
         t.projectName || 'عام',
-        String(t.debit)
+        String(t.debit),
+        imgUrls
       ]);
     });
     csvRows.push([]);
@@ -505,6 +510,7 @@ export const Reports: React.FC<ReportsProps> = () => {
                     <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الفئة</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">المشروع</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">المبلغ</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الصور</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -521,6 +527,38 @@ export const Reports: React.FC<ReportsProps> = () => {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{t.projectName}</td>
                       <td className="px-4 py-3 text-sm text-red-600 font-medium">{formatCurrency(t.debit)}</td>
+                      <td className="px-4 py-3">
+                        {t.receiptImages && t.receiptImages.length > 0 ? (
+                          <div className="flex items-center gap-1">
+                            {t.receiptImages.slice(0, 2).map((img, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setLightboxImage(img)}
+                                className="relative group"
+                              >
+                                <img
+                                  src={img}
+                                  alt="إيصال"
+                                  className="w-8 h-8 rounded object-cover border border-gray-200 hover:border-indigo-400 transition-all"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded flex items-center justify-center transition-all">
+                                  <ZoomIn className="w-3 h-3 text-white opacity-0 group-hover:opacity-100" />
+                                </div>
+                              </button>
+                            ))}
+                            {t.receiptImages.length > 2 && (
+                              <button
+                                onClick={() => setLightboxImage(t.receiptImages![2])}
+                                className="w-8 h-8 rounded bg-indigo-50 border border-indigo-200 text-indigo-600 text-xs font-bold flex items-center justify-center hover:bg-indigo-100 transition-colors"
+                              >
+                                +{t.receiptImages.length - 2}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-300 text-xs">لا يوجد</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -758,6 +796,27 @@ export const Reports: React.FC<ReportsProps> = () => {
           </div>
         </Card>
       </div>
+
+      {/* Lightbox Modal */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[10001] bg-black/95 flex items-center justify-center p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            onClick={() => setLightboxImage(null)}
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={lightboxImage}
+            alt="صورة الإيصال"
+            className="max-w-full max-h-[90vh] rounded-lg object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };

@@ -240,6 +240,9 @@ interface AppContextType {
   canViewFinance: boolean;
   toasts: Array<{ id: string; title: string; message?: string }>;
   removeToast: (id: string) => void;
+
+  // File Upload
+  uploadReceiptImage: (file: File, transactionId: string) => Promise<string | null>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -302,6 +305,7 @@ const convertTransaction = (data: any): Transaction => ({
   notes: data.notes || '',
   createdBy: data.created_by || '',
   createdAt: data.created_at || new Date().toISOString(),
+  receiptImages: data.receipt_images || [],
 });
 
 // Helper to convert Supabase client
@@ -403,6 +407,7 @@ const transactionToDB = (t: any) => ({
   has_tax_invoice: t.hasTaxInvoice,
   notes: t.notes,
   created_by: t.createdBy,
+  receipt_images: t.receiptImages || [],
 });
 
 const clientToDB = (c: any) => ({
@@ -523,11 +528,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const filteredInvoices = filterByUserAccess(invoices, currentUser?.id || '', isAdmin, isAccountant);
   const lowStockItems = stockItems.filter(item => item.quantity <= item.minQuantity);
 
-  const syncData = async () => {
+  const syncData = async (tablesToSync?: string[]) => {
     const isLocalNew = (item: any) => item && item.id && !item._isRemote;
 
     try {
       // 1. Fetch Users
+      if (!tablesToSync || tablesToSync.includes('users')) {
       try {
         const { data: usersData, error: uErr } = await supabase.from('users').select('*');
         if (!uErr && usersData) {
@@ -569,8 +575,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         console.error('Fetch users error:', err);
       }
+      }
 
       // 2. Fetch Projects
+      if (!tablesToSync || tablesToSync.includes('projects')) {
       try {
         const { data: projectsData, error: pErr } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
         if (pErr) {
@@ -611,8 +619,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         console.error('Fetch projects error:', err);
       }
+      }
 
       // 3. Fetch Transactions
+      if (!tablesToSync || tablesToSync.includes('transactions')) {
       try {
         const { data: transactionsData, error: tErr } = await supabase.from('transactions').select('*').order('date', { ascending: false });
         if (!tErr && transactionsData) {
@@ -643,8 +653,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         console.error('Fetch transactions error:', err);
       }
+      }
 
       // 4. Fetch Clients
+      if (!tablesToSync || tablesToSync.includes('clients')) {
       try {
         const { data: clientsData, error: cErr } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
         if (!cErr && clientsData) {
@@ -675,8 +687,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         console.error('Fetch clients error:', err);
       }
+      }
 
       // 5. Fetch Stock Items
+      if (!tablesToSync || tablesToSync.includes('stock_items')) {
       try {
         const { data: stockData, error: sErr } = await supabase.from('stock_items').select('*').order('created_at', { ascending: false });
         if (!sErr && stockData) {
@@ -707,8 +721,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         console.error('Fetch stock error:', err);
       }
+      }
 
       // 6. Fetch Units
+      if (!tablesToSync || tablesToSync.includes('units')) {
       try {
         const { data: unitsData, error: unErr } = await supabase.from('units').select('*').order('created_at', { ascending: false });
         if (!unErr && unitsData) {
@@ -739,8 +755,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         console.error('Fetch units error:', err);
       }
+      }
 
       // 7. Fetch Invoices
+      if (!tablesToSync || tablesToSync.includes('invoices')) {
       try {
         const { data: invoicesData, error: iErr } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
         if (!iErr && invoicesData) {
@@ -771,8 +789,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         console.error('Fetch invoices error:', err);
       }
+      }
 
       // 8. Fetch Notifications
+      if (!tablesToSync || tablesToSync.includes('notifications')) {
       try {
         const { data: notificationsData, error: nErr } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
         if (!nErr && notificationsData) {
@@ -805,6 +825,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       } catch (err) {
         console.error('Fetch notifications error:', err);
+      }
       }
 
       return true;
@@ -1014,7 +1035,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // AND only if it was NOT created by an Admin (unless the logged-in user is also an Admin)
             if (newNotif && newNotif.createdBy !== currentUser?.name) {
               const isAdminAction = newNotif.createdByRole === 'admin';
-              const shouldAlert = currentUser?.role === 'admin' || !isAdminAction;
+              const shouldAlert = currentUser?.role === 'admin' || currentUser?.role === 'accountant' || !isAdminAction;
               if (shouldAlert) {
                 triggerToast(newNotif.title, newNotif.message);
               }
@@ -1022,12 +1043,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           } catch (err) {
             console.error('Error handling realtime notification toast:', err);
           }
-          syncData();
+          syncData(['notifications']);
         })
         .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
           console.log('Realtime DB change caught:', payload);
-          // When any change happens, trigger syncData to update state & LocalStorage
-          syncData();
+          if (payload.table && payload.table !== 'notifications') {
+            syncData([payload.table]);
+          } else if (!payload.table) {
+            syncData();
+          }
         })
         .subscribe((status) => {
           console.log(`Supabase Realtime subscription status for user ${currentUser.name}:`, status);
@@ -1036,7 +1060,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Periodic background synchronization every 10 seconds as a fallback
       const interval = setInterval(() => {
         syncData();
-      }, 10000);
+      }, 300000);
 
       return () => {
         clearInterval(interval);
@@ -1047,66 +1071,56 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Auth functions
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Sync latest users from Supabase before checking password
     try {
-      const { data: usersData } = await supabase.from('users').select('*');
-      if (usersData) {
-        const parsedUsers = usersData.map(convertUser);
-        setUsers(parsedUsers);
-        localStorage.setItem(USERS_KEY, JSON.stringify(parsedUsers));
-        
-        const user = parsedUsers.find(u => u.email === email && u.isActive && (!u.password || u.password === password));
-        if (user) {
-          setCurrentUser(user);
-          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-          syncData();
-          return true;
-        }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error || !data.user) {
+        console.error('Login error:', error);
+        return false;
+      }
+
+      // Fetch the full user profile from our public users table
+      const { data: userData, error: uErr } = await supabase.from('users').select('*').eq('id', data.user.id).single();
+      
+      if (userData && !uErr) {
+        const u = convertUser(userData);
+        setCurrentUser(u);
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
+        syncData();
+        return true;
       }
     } catch (err) {
-      console.error('Supabase login check error, falling back to local users:', err);
-    }
-
-    const user = users.find(u => u.email === email && u.isActive && (!u.password || u.password === password));
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-      return true;
+      console.error('Login exception:', err);
     }
     return false;
   };
 
   const loginWithUsername = async (username: string, password: string): Promise<boolean> => {
-    // Sync latest users from Supabase before checking password
     try {
-      const { data: usersData } = await supabase.from('users').select('*');
-      if (usersData) {
-        const parsedUsers = usersData.map(convertUser);
-        setUsers(parsedUsers);
-        localStorage.setItem(USERS_KEY, JSON.stringify(parsedUsers));
+      // First, get the email for this username from our public table
+      const { data: usersData, error: lookupErr } = await supabase
+        .from('users')
+        .select('email')
+        .eq('username', username)
+        .single();
         
-        const user = parsedUsers.find(u => (u.username === username || u.email === username) && u.isActive && (!u.password || u.password === password));
-        if (user) {
-          setCurrentUser(user);
-          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-          syncData();
-          return true;
-        }
+      if (lookupErr || !usersData?.email) {
+        // Fallback: try logging in treating username as email
+        return await login(username, password);
       }
+      
+      return await login(usersData.email, password);
     } catch (err) {
-      console.error('Supabase loginWithUsername check error, falling back to local users:', err);
+      console.error('Username login exception:', err);
+      return false;
     }
-
-    const user = users.find(u => (u.username === username || u.email === username) && u.isActive && (!u.password || u.password === password));
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-      return true;
-    }
-    return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
     localStorage.removeItem(CURRENT_USER_KEY);
   };
@@ -1410,7 +1424,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addNotification({
       type: 'transaction',
       title: 'معاملة جديدة',
-      message: `قام ${currentUser?.name || 'مستخدم'} بإضافة معاملة: ${transaction.description}`,
+      message: `قام ${currentUser?.name || 'مستخدم'} بإضافة معاملة بقيمة ${transaction.debit || transaction.credit} للمورد ${transaction.supplierName} في مشروع ${transaction.projectName || 'عام'}: ${transaction.description}`,
       isRead: false,
     });
 
@@ -1434,7 +1448,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addNotification({
       type: 'transaction',
       title: 'تعديل معاملة',
-      message: `قام ${currentUser?.name || 'مستخدم'} بتعديل المعاملة: ${targetTransaction?.description || id}`,
+      message: `قام ${currentUser?.name || 'مستخدم'} بتعديل المعاملة (${targetTransaction?.description}) للمورد ${transactionData.supplierName || targetTransaction?.supplierName}`,
       isRead: false,
     });
 
@@ -1495,7 +1509,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addNotification({
       type: 'general',
       title: 'عميل جديد',
-      message: `قام ${currentUser?.name || 'مستخدم'} بإضافة عميل جديد: ${newClient.name}`,
+      message: `قام ${currentUser?.name || 'مستخدم'} بإضافة عميل جديد: ${newClient.name} (${newClient.company || 'بدون شركة'})`,
       isRead: false,
     });
 
@@ -1851,6 +1865,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return Object.entries(months).map(([month, data]) => ({ month, ...data }));
   };
 
+  // Upload a receipt image to Supabase Storage and return the public URL
+  const uploadReceiptImage = async (file: File, transactionId: string): Promise<string | null> => {
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const fileName = `${transactionId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, file, { upsert: false, contentType: file.type });
+      if (error) {
+        console.error('Upload error:', error);
+        return null;
+      }
+      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      return urlData?.publicUrl || null;
+    } catch (err) {
+      console.error('uploadReceiptImage exception:', err);
+      return null;
+    }
+  };
+
   const value: AppContextType = {
     currentUser,
     login,
@@ -1904,6 +1938,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     canViewFinance,
     toasts,
     removeToast,
+    uploadReceiptImage,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

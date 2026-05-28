@@ -83,6 +83,21 @@ async function createWindow(port) {
     backgroundColor: '#F8FAFC',
   });
 
+  // Grant camera/microphone permissions automatically
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'camera', 'microphone', 'mediaKeySystem', 'notifications'];
+    if (allowedPermissions.includes(permission)) {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
+  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission) => {
+    const allowedPermissions = ['media', 'camera', 'microphone', 'notifications'];
+    return allowedPermissions.includes(permission);
+  });
+
   // Load the app
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');

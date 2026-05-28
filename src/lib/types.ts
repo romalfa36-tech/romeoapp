@@ -136,6 +136,7 @@ export interface Transaction {
   notes: string;
   createdBy: string;
   createdAt: string;
+  receiptImages?: string[]; // URLs of uploaded receipt/invoice images
 }
 
 export interface FinancialSummary {
