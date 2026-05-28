@@ -16,7 +16,8 @@ import {
   Truck,
   AlertTriangle,
   ZoomIn,
-  X
+  X,
+  Camera
 } from 'lucide-react';
 
 interface ReportsProps {}
@@ -353,6 +354,13 @@ export const Reports: React.FC<ReportsProps> = () => {
           الفواتير الضريبية
         </Button>
         <Button
+          variant={selectedReport === 'transactions' ? 'primary' : 'secondary'}
+          onClick={() => setSelectedReport('transactions')}
+          icon={Camera}
+        >
+          المعاملات بالصور
+        </Button>
+        <Button
           variant={selectedReport === 'stock' ? 'primary' : 'secondary'}
           onClick={() => setSelectedReport('stock')}
           icon={Package}
@@ -563,6 +571,116 @@ export const Reports: React.FC<ReportsProps> = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {selectedReport === 'transactions' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">جميع المعاملات مع الصور المرفقة</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  عرض كامل لجميع المعاملات المالية وصور الإيصالات والفواتير المرتبطة بها
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">#</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">التاريخ</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">المورد/الجهة</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الوصف</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">الفئة</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">المشروع</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">مصروف</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">إيراد</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">صور الإيصالات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-8 text-center text-gray-500">لا توجد معاملات حالياً</td>
+                    </tr>
+                  ) : (
+                    transactions.map((t, i) => (
+                      <tr key={t.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-500">{i + 1}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{t.date}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{t.supplierName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={t.description}>{t.description}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(t.category)}`}>
+                            {getCategoryLabel(t.category)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{t.projectName || 'عام'}</td>
+                        <td className="px-4 py-3 text-sm text-red-600 font-medium">{t.debit > 0 ? formatCurrency(t.debit) : '-'}</td>
+                        <td className="px-4 py-3 text-sm text-green-600 font-medium">{t.credit > 0 ? formatCurrency(t.credit) : '-'}</td>
+                        <td className="px-4 py-3">
+                          {t.receiptImages && t.receiptImages.length > 0 ? (
+                            <div className="flex items-center gap-1">
+                              {t.receiptImages.slice(0, 3).map((img, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => setLightboxImage(img)}
+                                  className="relative group"
+                                >
+                                  <img
+                                    src={img}
+                                    alt="إيصال"
+                                    className="w-10 h-10 rounded-lg object-cover border-2 border-gray-200 hover:border-indigo-400 transition-all shadow-sm"
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg flex items-center justify-center transition-all">
+                                    <ZoomIn className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100" />
+                                  </div>
+                                </button>
+                              ))}
+                              {t.receiptImages.length > 3 && (
+                                <button
+                                  onClick={() => setLightboxImage(t.receiptImages![3])}
+                                  className="w-10 h-10 rounded-lg bg-indigo-50 border-2 border-indigo-200 text-indigo-600 text-xs font-bold flex items-center justify-center hover:bg-indigo-100 transition-colors"
+                                >
+                                  +{t.receiptImages.length - 3}
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-300 text-xs flex items-center gap-1">
+                              <Camera className="w-3.5 h-3.5" />
+                              لا يوجد
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Summary stats */}
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-xs text-gray-500">إجمالي المعاملات</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{transactions.length}</p>
+              </div>
+              <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                <p className="text-xs text-green-700">معاملات بصور مرفقة</p>
+                <p className="text-xl font-bold text-green-600 mt-1">
+                  {transactions.filter(t => t.receiptImages && t.receiptImages.length > 0).length}
+                </p>
+              </div>
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                <p className="text-xs text-amber-700">معاملات بدون صور</p>
+                <p className="text-xl font-bold text-amber-600 mt-1">
+                  {transactions.filter(t => !t.receiptImages || t.receiptImages.length === 0).length}
+                </p>
+              </div>
             </div>
           </div>
         )}

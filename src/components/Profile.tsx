@@ -221,7 +221,7 @@ export const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
             <span className="text-xs text-gray-400">قريباً</span>
           </div>
 
-          <Button onClick={() => setShowSettingsModal(false)} className="w-full mt-4">حفظ وإغلاق</Button>
+          <Button onClick={() => setShowSettingsModal(false)} className="w-full mt-4">إغلاق</Button>
         </div>
       </Modal>
 

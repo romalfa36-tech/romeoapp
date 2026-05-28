@@ -518,6 +518,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
+  const getReadNotificationIds = (): Set<string> => {
+    if (!currentUser) return new Set();
+    const stored = localStorage.getItem(`read_notifications_${currentUser.id}`);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  };
+
+  const saveReadNotificationIds = (ids: Set<string>) => {
+    if (!currentUser) return;
+    localStorage.setItem(`read_notifications_${currentUser.id}`, JSON.stringify(Array.from(ids)));
+  };
+
   const isAdmin = currentUser?.role === 'admin';
   const isAccountant = currentUser?.role === 'accountant';
   const canViewFinance = isAdmin || isAccountant;
@@ -796,7 +807,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const { data: notificationsData, error: nErr } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
         if (!nErr && notificationsData) {
-          const parsed = notificationsData.map(convertNotification).map(n => ({ ...n, _isRemote: true } as Notification));
+          const readIds = getReadNotificationIds();
+          const parsed = notificationsData.map(convertNotification).map(n => ({
+            ...n,
+            isRead: n.isRead || readIds.has(n.id),
+            _isRemote: true
+          } as Notification));
           
           const localStr = localStorage.getItem(NOTIFICATIONS_KEY);
           const localNotifications: Notification[] = localStr ? JSON.parse(localStr) : [];
@@ -814,7 +830,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
           }
           
-          const merged = [...unsynced, ...parsed];
+          const merged = [...unsynced, ...parsed].map(n => ({
+            ...n,
+            isRead: n.isRead || readIds.has(n.id)
+          }));
           const unique = Array.from(new Map(merged.map(n => [n.id, n])).values());
           
           // Sort by date descending
@@ -994,12 +1013,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const storedInvoices = localStorage.getItem(INVOICES_KEY);
         if (storedInvoices) setInvoices(JSON.parse(storedInvoices));
 
-        const storedNotifications = localStorage.getItem(NOTIFICATIONS_KEY);
-        if (storedNotifications) setNotifications(JSON.parse(storedNotifications));
-
         const storedUser = localStorage.getItem(CURRENT_USER_KEY);
+        let loadedUser = null;
         if (storedUser) {
-          setCurrentUser(JSON.parse(storedUser));
+          loadedUser = JSON.parse(storedUser);
+          setCurrentUser(loadedUser);
+        }
+
+        const storedNotifications = localStorage.getItem(NOTIFICATIONS_KEY);
+        if (storedNotifications) {
+          const parsed = JSON.parse(storedNotifications);
+          if (loadedUser) {
+            const readIdsStr = localStorage.getItem(`read_notifications_${loadedUser.id}`);
+            const readIds = readIdsStr ? new Set(JSON.parse(readIdsStr)) : new Set();
+            setNotifications(parsed.map((n: any) => ({
+              ...n,
+              isRead: n.isRead || readIds.has(n.id)
+            })));
+          } else {
+            setNotifications(parsed);
+          }
         }
       } catch (err) {
         console.error('Failed to load local data:', err);
@@ -1027,40 +1060,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Setup Supabase Realtime channel subscription to listen to all public database changes
       const channel = supabase
         .channel('db-changes')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
           console.log('Realtime Notification change caught:', payload);
-          try {
-            const newNotif = convertNotification(payload.new);
-            // Trigger toast alert for everyone except the actor who created it
-            // AND only if it was NOT created by an Admin (unless the logged-in user is also an Admin)
-            if (newNotif && newNotif.createdBy !== currentUser?.name) {
-              const isAdminAction = newNotif.createdByRole === 'admin';
-              const shouldAlert = currentUser?.role === 'admin' || currentUser?.role === 'accountant' || !isAdminAction;
-              if (shouldAlert) {
+          if (payload.eventType === 'INSERT') {
+            try {
+              const newNotif = convertNotification(payload.new);
+              // Trigger toast alert for everyone except the actor who created it
+              if (newNotif && newNotif.createdBy !== currentUser?.name) {
                 triggerToast(newNotif.title, newNotif.message);
               }
+            } catch (err) {
+              console.error('Error handling realtime notification toast:', err);
             }
-          } catch (err) {
-            console.error('Error handling realtime notification toast:', err);
           }
           syncData(['notifications']);
         })
-        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-          console.log('Realtime DB change caught:', payload);
-          if (payload.table && payload.table !== 'notifications') {
-            syncData([payload.table]);
-          } else if (!payload.table) {
-            syncData();
-          }
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
+          console.log('Realtime Project change caught:', payload);
+          syncData(['projects']);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, (payload) => {
+          console.log('Realtime Transaction change caught:', payload);
+          syncData(['transactions']);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, (payload) => {
+          console.log('Realtime Invoice change caught:', payload);
+          syncData(['invoices']);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_items' }, (payload) => {
+          console.log('Realtime Stock change caught:', payload);
+          syncData(['stock_items']);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'units' }, (payload) => {
+          console.log('Realtime Unit change caught:', payload);
+          syncData(['units']);
         })
         .subscribe((status) => {
           console.log(`Supabase Realtime subscription status for user ${currentUser.name}:`, status);
         });
 
-      // Periodic background synchronization every 10 seconds as a fallback
+      // Periodic background synchronization every 15 seconds as a fallback
       const interval = setInterval(() => {
         syncData();
-      }, 300000);
+      }, 15000);
 
       return () => {
         clearInterval(interval);
@@ -1156,30 +1198,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const markAsRead = async (id: string) => {
+    const readIds = getReadNotificationIds();
+    readIds.add(id);
+    saveReadNotificationIds(readIds);
+
     setNotifications(prev => {
       const updated = prev.map(n => n.id === id ? { ...n, isRead: true } : n);
       localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
       return updated;
     });
-
-    try {
-      await supabase.from('notifications').update({ is_read: true }).eq('id', id);
-      await syncData();
-    } catch (err) {
-      console.error('Supabase markAsRead error:', err);
-    }
   };
 
   const clearNotifications = async () => {
-    setNotifications([]);
-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify([]));
+    // Mark all notifications as read locally instead of deleting from DB
+    // This preserves notifications for other team members
+    const readIds = getReadNotificationIds();
+    notifications.forEach(n => {
+      readIds.add(n.id);
+    });
+    saveReadNotificationIds(readIds);
 
-    try {
-      await supabase.from('notifications').delete().neq('id', '');
-      await syncData();
-    } catch (err) {
-      console.error('Supabase clearNotifications error:', err);
-    }
+    const updatedNotifications = notifications.map(n => ({ ...n, isRead: true }));
+    setNotifications(updatedNotifications);
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updatedNotifications));
   };
 
   // User functions
@@ -1466,6 +1507,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (transactionData.projectName) dbData.project_name = transactionData.projectName;
       if (transactionData.hasTaxInvoice !== undefined) dbData.has_tax_invoice = transactionData.hasTaxInvoice;
       if (transactionData.notes !== undefined) dbData.notes = transactionData.notes;
+      if (transactionData.receiptImages !== undefined) dbData.receipt_images = transactionData.receiptImages;
 
       await supabase.from('transactions').update(dbData).eq('id', id);
       await syncData();
@@ -1925,7 +1967,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addInvoice,
     updateInvoice,
     deleteInvoice,
-    notifications: currentUser?.role === 'admin' ? notifications : notifications.filter(n => n.createdByRole !== 'admin'),
+    notifications,
     addNotification,
     markAsRead,
     clearNotifications,

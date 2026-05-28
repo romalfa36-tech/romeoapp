@@ -22,6 +22,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { safeFormatDate } from '../lib/types';
+import { parseReceiptWithAI } from '../lib/gemini';
 
 interface TransactionsProps {
   onNavigate: (page: string, id?: string) => void;
@@ -349,6 +350,70 @@ export const Transactions: React.FC<TransactionsProps> = ({ onNavigate }) => {
   );
 };
 
+// Helper to compress images client-side before uploading to Supabase
+const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.85): Promise<File> => {
+  return new Promise((resolve) => {
+    // Only compress images (exclude PDFs)
+    if (!file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        // Calculate aspect ratio resizing
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile.size < file.size ? compressedFile : file);
+            } else {
+              resolve(file);
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
+
 // =============================================================
 // Transaction Form Modal with Receipt Photo Upload
 // =============================================================
@@ -383,6 +448,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [capturedPreview, setCapturedPreview] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [parsingAI, setParsingAI] = useState(false);
+  const localBase64Cache = useRef<Record<string, string>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mobileCameraInputRef = useRef<HTMLInputElement>(null);
@@ -403,6 +470,44 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
     });
   };
 
+  const handleAIParsing = async () => {
+    if (formData.receiptImages.length === 0) return;
+    
+    const apiKey = 'AIzaSyCcUWRJIKEV4AU7vk97UjAI1DZIOTKANnM';
+
+    setParsingAI(true);
+    try {
+      const targetUrl = formData.receiptImages[0];
+      // Use local base64 cache if available to bypass CORS/Network issues entirely
+      const sourceData = localBase64Cache.current[targetUrl] || targetUrl;
+      const parsedData = await parseReceiptWithAI(sourceData, apiKey);
+      
+      if (parsedData) {
+        setFormData(prev => ({
+          ...prev,
+          supplierName: parsedData.supplierName || prev.supplierName,
+          date: parsedData.date || prev.date,
+          debit: parsedData.amount || prev.debit,
+          hasTaxInvoice: parsedData.hasTaxInvoice !== undefined ? parsedData.hasTaxInvoice : prev.hasTaxInvoice,
+          description: parsedData.description || prev.description,
+        }));
+      } else {
+        alert('لم نتمكن من تحليل الفاتورة. يرجى التأكد من جودة الصورة أو صحة مفتاح الـ API.');
+      }
+    } catch (err: any) {
+      console.error('AI parsing error:', err);
+      // Give extremely clear, Arabic explanations for potential geoblocks or network errors
+      const errMsg = err.message || '';
+      if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
+        alert(`فشل الاتصال بالذكاء الاصطناعي (Failed to fetch).\n\nالأسباب المحتملة:\n1. إذا كنت في سوريا أو لبنان أو دولة أخرى محظورة من خدمات Google، يرجى تشغيل برنامج كاسر بروكسي (VPN) والمحاولة مرة أخرى.\n2. تأكد من اتصال جهازك بالإنترنت.\n3. قد يكون هناك مشكلة مؤقتة في خوادم Google.`);
+      } else {
+        alert(`حدث خطأ أثناء قراءة الفاتورة بالذكاء الاصطناعي: ${errMsg}`);
+      }
+    } finally {
+      setParsingAI(false);
+    }
+  };
+
   // Helper to convert base64 dataUrl to File (for Electron/Web webcam uploads)
   const dataURLtoFile = (dataurl: string, filename: string): File => {
     const arr = dataurl.split(',');
@@ -418,10 +523,31 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
 
   // ---- Camera ----
   const startCamera = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn('getUserMedia is not supported on this browser');
+      if (mobileCameraInputRef.current) {
+        mobileCameraInputRef.current.click();
+      } else {
+        alert('تعذر الوصول إلى الكاميرا في هذا المتصفح. يرجى استخدام خيار رفع الملف.');
+      }
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
-      });
+      let stream: MediaStream;
+      try {
+        // Try high-quality environment camera first (typically back camera on mobile)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+      } catch (innerErr) {
+        console.warn('Failed with environment facingMode and constraints, trying fallback:', innerErr);
+        // Fallback to default user/back camera
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true
+        });
+      }
+
       setCameraStream(stream);
       setShowCamera(true);
       setTimeout(() => {
@@ -429,10 +555,15 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
           videoRef.current.srcObject = stream;
           videoRef.current.play();
         }
-      }, 100);
+      }, 150);
     } catch (err) {
       console.error('Camera access denied:', err);
-      alert('تعذر الوصول إلى الكاميرا. يرجى منح الإذن أو استخدام خيار رفع الملف.');
+      // Auto-fallback: trigger native file/camera chooser
+      if (mobileCameraInputRef.current) {
+        mobileCameraInputRef.current.click();
+      } else {
+        alert('تعذر الوصول إلى الكاميرا. يرجى منح الإذن أو استخدام خيار رفع الملف.');
+      }
     }
   };
 
@@ -463,11 +594,14 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
     setUploadingImages(true);
     try {
       const file = dataURLtoFile(capturedPreview, `capture_${Date.now()}.jpg`);
-      const url = await uploadReceiptImage(file, tempId.current);
+      const compressedFile = await compressImage(file);
+      const url = await uploadReceiptImage(compressedFile, tempId.current);
       if (url) {
+        // Cache the base64 preview for instant AI parsing without network fetch
+        localBase64Cache.current[url] = capturedPreview;
         setFormData(prev => ({ ...prev, receiptImages: [...prev.receiptImages, url] }));
       } else {
-        alert('فشل رفع الصورة الملتقطة. يرجى التأكد من تشغيل SQL الخاص بالصلاحيات (storage-setup.sql) في Supabase.');
+        alert('فشل رفع الصورة الملتقطة. يرجى التأكد من تشغيل SQL الخاص بالصلاحيات (storage-setup.sql) in Supabase.');
       }
     } catch (err) {
       console.error('Captured photo upload error:', err);
@@ -488,11 +622,18 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
       newProgress.push(`جاري رفع ${file.name}...`);
       setUploadProgress([...newProgress]);
       try {
-        const url = await uploadReceiptImage(file, tempId.current);
+        const compressedFile = await compressImage(file);
+        const url = await uploadReceiptImage(compressedFile, tempId.current);
         if (url) {
           newUrls.push(url);
+          // Load compressed file as base64 and cache it locally for direct AI parsing
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            localBase64Cache.current[url] = reader.result as string;
+          };
+          reader.readAsDataURL(compressedFile);
         } else {
-          alert(`فشل رفع الملف: ${file.name}. يرجى التأكد من تشغيل SQL الخاص بالصلاحيات (storage-setup.sql) في Supabase.`);
+          alert(`فشل رفع الملف: ${file.name}. يرجى التأكد من تشغيل SQL الخاص بالصلاحيات (storage-setup.sql) in Supabase.`);
         }
       } catch (err) {
         console.error('File upload error:', err);
@@ -625,13 +766,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (isElectron) {
-                      startCamera();
-                    } else {
-                      mobileCameraInputRef.current?.click();
-                    }
-                  }}
+                  onClick={startCamera}
                   disabled={uploadingImages}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                 >
@@ -674,6 +809,29 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
               </div>
             )}
 
+            {/* AI Receipt Parsing Button */}
+            {formData.receiptImages.length > 0 && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={handleAIParsing}
+                  disabled={parsingAI || uploadingImages}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 shadow-md hover:shadow-lg disabled:opacity-50 transition-all animate-pulse"
+                >
+                  {parsingAI ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>جاري قراءة الفاتورة بالذكاء الاصطناعي... 🧠</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>قراءة وتحليل الفاتورة بالذكاء الاصطناعي ✨</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
             {/* Existing images grid */}
             {formData.receiptImages.length > 0 ? (
               <div className="grid grid-cols-3 gap-2">
@@ -708,9 +866,14 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
               </div>
             ) : (
               !uploadingImages && (
-                <p className="text-xs text-center text-gray-400 py-3">
-                  لم يتم إرفاق أي صور بعد
-                </p>
+                <div className="text-center py-4 space-y-1 bg-indigo-50/20 rounded-lg border border-dashed border-indigo-100 p-3">
+                  <p className="text-xs text-gray-400">
+                    لم يتم إرفاق أي صور بعد
+                  </p>
+                  <p className="text-[10px] text-indigo-600 font-semibold flex items-center justify-center gap-1">
+                    ✨ ارفع صورة أو التقط إيصالاً لتفعيل خيار "التحليل الذكي بالذكاء الاصطناعي" تلقائياً
+                  </p>
+                </div>
               )
             )}
           </div>
