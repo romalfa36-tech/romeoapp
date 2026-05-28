@@ -12,6 +12,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================
 ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS read_notifications TEXT[] DEFAULT '{}';
 
 -- ============================================
 -- ADD COLUMNS TO EXISTING PROJECTS TABLE

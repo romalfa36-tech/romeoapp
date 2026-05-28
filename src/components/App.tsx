@@ -131,6 +131,7 @@ export const App: React.FC = () => {
       setSelectedProjectId(null);
     }
     setMobileMenuOpen(false);
+    setShowNotifications(false);
   };
 
   const handleBackFromProject = () => {
@@ -141,6 +142,7 @@ export const App: React.FC = () => {
   const handleLogout = () => {
     logout();
     setCurrentPage('Dashboard');
+    setShowNotifications(false);
   };
 
   if (!isAuthenticated) {
@@ -178,6 +180,93 @@ export const App: React.FC = () => {
       default:
         return <Dashboard onNavigate={handleNavigate} />;
     }
+  };
+
+  const renderNotificationsDropdown = () => {
+    if (!showNotifications) return null;
+    return (
+      <div 
+        className={`absolute ${language === 'ar' ? 'right-0' : 'left-0'} mt-2 w-[calc(100vw-2rem)] sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50`} 
+        style={{ maxWidth: '95vw' }}
+      >
+        <div className="p-4 border-b flex items-center justify-between">
+          <h3 className="font-bold text-gray-900 text-base">{t('notifications.title')} ({notifications.length})</h3>
+          <div className="flex gap-2">
+            {notifications.length > 0 && (
+              <>
+                <button
+                  onClick={() => { notifications.forEach(n => { if (!n.isRead) markAsRead(n.id); }); }}
+                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                  title="تعيين الكل كمقروء"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => { clearNotifications(); setShowNotifications(false); }}
+                  className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                  title="مسح الكل"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="max-h-96 overflow-y-auto">
+          {notifications.length === 0 ? (
+            <div className="p-8 text-center">
+              <Bell className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">{t('notifications.noNotifications')}</p>
+            </div>
+          ) : (
+            notifications.slice(0, 15).map((notif) => (
+              <div
+                key={notif.id}
+                onClick={() => markAsRead(notif.id)}
+                className={`p-3.5 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
+                  !notif.isRead ? 'bg-blue-50/70 border-l-4 border-l-blue-500' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 p-1.5 rounded-lg flex-shrink-0 ${
+                    notif.type === 'project' ? 'bg-emerald-100 text-emerald-600' :
+                    notif.type === 'transaction' ? 'bg-blue-100 text-blue-600' :
+                    notif.type === 'low_stock' ? 'bg-amber-100 text-amber-600' :
+                    notif.type === 'invoice' ? 'bg-purple-100 text-purple-600' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {notif.type === 'project' ? <Building2 className="w-3.5 h-3.5" /> :
+                     notif.type === 'transaction' ? <Receipt className="w-3.5 h-3.5" /> :
+                     notif.type === 'low_stock' ? <AlertTriangle className="w-3.5 h-3.5" /> :
+                     notif.type === 'invoice' ? <FileText className="w-3.5 h-3.5" /> :
+                     <Bell className="w-3.5 h-3.5" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-gray-900">{notif.title}</p>
+                    <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{notif.message}</p>
+                    <div className="flex items-center gap-3 mt-1.5">
+                      {notif.createdBy && (
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {notif.createdBy}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(notif.createdAt).toLocaleString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                  {!notif.isRead && (
+                    <div className="w-2.5 h-2.5 bg-blue-500 rounded-full flex-shrink-0 mt-1.5"></div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -361,17 +450,20 @@ export const App: React.FC = () => {
             >
               <Globe className="w-5 h-5 text-gray-500" />
             </button>
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 hover:bg-gray-100 rounded-lg relative"
-            >
-              <Bell className="w-5 h-5 text-gray-500" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 hover:bg-gray-100 rounded-lg relative"
+              >
+                <Bell className="w-5 h-5 text-gray-500" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              {renderNotificationsDropdown()}
+            </div>
           </div>
         </header>
 
@@ -398,86 +490,7 @@ export const App: React.FC = () => {
                 </span>
               )}
             </button>
-            {showNotifications && (
-              <div className="absolute left-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50" style={{ maxWidth: '95vw' }}>
-                <div className="p-4 border-b flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-base">{t('notifications.title')} ({notifications.length})</h3>
-                  <div className="flex gap-2">
-                    {notifications.length > 0 && (
-                      <>
-                        <button
-                          onClick={() => { notifications.forEach(n => { if (!n.isRead) markAsRead(n.id); }); }}
-                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                          title="تعيين الكل كمقروء"
-                        >
-                          <CheckCheck className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => { clearNotifications(); setShowNotifications(false); }}
-                          className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                          title="مسح الكل"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="max-h-96 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="p-8 text-center">
-                      <Bell className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500 text-sm">{t('notifications.noNotifications')}</p>
-                    </div>
-                  ) : (
-                    notifications.slice(0, 15).map((notif) => (
-                      <div
-                        key={notif.id}
-                        onClick={() => markAsRead(notif.id)}
-                        className={`p-3.5 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                          !notif.isRead ? 'bg-blue-50/70 border-l-4 border-l-blue-500' : ''
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`mt-0.5 p-1.5 rounded-lg flex-shrink-0 ${
-                            notif.type === 'project' ? 'bg-emerald-100 text-emerald-600' :
-                            notif.type === 'transaction' ? 'bg-blue-100 text-blue-600' :
-                            notif.type === 'low_stock' ? 'bg-amber-100 text-amber-600' :
-                            notif.type === 'invoice' ? 'bg-purple-100 text-purple-600' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {notif.type === 'project' ? <Building2 className="w-3.5 h-3.5" /> :
-                             notif.type === 'transaction' ? <Receipt className="w-3.5 h-3.5" /> :
-                             notif.type === 'low_stock' ? <AlertTriangle className="w-3.5 h-3.5" /> :
-                             notif.type === 'invoice' ? <FileText className="w-3.5 h-3.5" /> :
-                             <Bell className="w-3.5 h-3.5" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-gray-900">{notif.title}</p>
-                            <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{notif.message}</p>
-                            <div className="flex items-center gap-3 mt-1.5">
-                              {notif.createdBy && (
-                                <span className="text-xs text-gray-400 flex items-center gap-1">
-                                  <User className="w-3 h-3" />
-                                  {notif.createdBy}
-                                </span>
-                              )}
-                              <span className="text-xs text-gray-400 flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {new Date(notif.createdAt).toLocaleString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                          </div>
-                          {!notif.isRead && (
-                            <div className="w-2.5 h-2.5 bg-blue-500 rounded-full flex-shrink-0 mt-1.5"></div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
+            {renderNotificationsDropdown()}
           </div>
         </div>
 

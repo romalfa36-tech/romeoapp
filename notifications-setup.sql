@@ -15,8 +15,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Safe migration: Add column if the table already existed
+-- Safe migration: Add columns if the table already existed
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS created_by_role TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS created_by_id UUID REFERENCES users(id) ON DELETE SET NULL;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;

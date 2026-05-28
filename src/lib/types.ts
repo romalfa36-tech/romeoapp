@@ -9,6 +9,7 @@ export interface User {
   password?: string;
   createdAt: string;
   isActive: boolean;
+  readNotifications?: string[];
 }
 
 // Notification type
@@ -20,6 +21,7 @@ export interface Notification {
   isRead: boolean;
   createdBy?: string;
   createdByRole?: 'admin' | 'employee' | 'accountant';
+  createdById?: string;
   createdAt: string;
   _isRemote?: boolean;
 }

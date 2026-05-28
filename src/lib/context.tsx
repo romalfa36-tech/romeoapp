@@ -269,6 +269,7 @@ const convertUser = (data: any): User => ({
   password: data.password || '',
   createdAt: data.created_at || new Date().toISOString(),
   isActive: data.is_active !== undefined ? data.is_active : true,
+  readNotifications: data.read_notifications || [],
 });
 
 // Helper to convert Supabase project
@@ -376,6 +377,7 @@ const convertNotification = (data: any): Notification => ({
   isRead: data.is_read !== undefined ? data.is_read : false,
   createdBy: data.created_by || '',
   createdByRole: data.created_by_role || undefined,
+  createdById: data.created_by_id || undefined,
   createdAt: data.created_at || new Date().toISOString(),
 });
 
@@ -465,6 +467,7 @@ const userToDB = (u: any) => ({
   role: u.role,
   permissions: u.permissions,
   is_active: u.isActive,
+  read_notifications: u.readNotifications || [],
 });
 
 const notificationToDB = (n: any) => ({
@@ -474,6 +477,7 @@ const notificationToDB = (n: any) => ({
   is_read: n.isRead,
   created_by: n.createdBy || null,
   created_by_role: n.createdByRole || null,
+  created_by_id: n.createdById || null,
 });
 
 // Filter data based on user role
@@ -521,12 +525,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getReadNotificationIds = (): Set<string> => {
     if (!currentUser) return new Set();
     const stored = localStorage.getItem(`read_notifications_${currentUser.id}`);
-    return stored ? new Set(JSON.parse(stored)) : new Set();
+    const localSet = stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+    
+    // Sync from database if user has remote read notifications
+    if (currentUser.readNotifications && Array.isArray(currentUser.readNotifications)) {
+      currentUser.readNotifications.forEach(id => localSet.add(id));
+    }
+    return localSet;
   };
 
-  const saveReadNotificationIds = (ids: Set<string>) => {
+  const saveReadNotificationIds = async (ids: Set<string>) => {
     if (!currentUser) return;
-    localStorage.setItem(`read_notifications_${currentUser.id}`, JSON.stringify(Array.from(ids)));
+    const idsArray = Array.from(ids);
+    localStorage.setItem(`read_notifications_${currentUser.id}`, JSON.stringify(idsArray));
+    
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ read_notifications: idsArray })
+        .eq('id', currentUser.id);
+        
+      if (error) {
+        console.error('Failed to sync read notifications to database:', error);
+      } else {
+        // Update currentUser locally to keep the memory state in sync
+        setCurrentUser(prev => prev ? { ...prev, readNotifications: idsArray } : null);
+        // Also update local users list
+        setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, readNotifications: idsArray } : u));
+      }
+    } catch (e) {
+      console.warn('Supabase read_notifications update failed (migration script might need to be run):', e);
+    }
   };
 
   const isAdmin = currentUser?.role === 'admin';
@@ -1066,7 +1095,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             try {
               const newNotif = convertNotification(payload.new);
               // Trigger toast alert for everyone except the actor who created it
-              if (newNotif && newNotif.createdBy !== currentUser?.name) {
+              const isSelf = newNotif.createdById 
+                ? newNotif.createdById === currentUser?.id 
+                : newNotif.createdBy === currentUser?.name;
+              if (newNotif && !isSelf) {
                 triggerToast(newNotif.title, newNotif.message);
               }
             } catch (err) {
@@ -1074,6 +1106,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
           }
           syncData(['notifications']);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
+          console.log('Realtime User change caught:', payload);
+          syncData(['users']);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
           console.log('Realtime Project change caught:', payload);
@@ -1175,6 +1211,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString(),
       createdBy: notification.createdBy || currentUser?.name || 'النظام',
       createdByRole: notification.createdByRole || (notification.createdBy ? undefined : currentUser?.role) || undefined,
+      createdById: notification.createdById || currentUser?.id || undefined,
     };
 
     // Prepend to state & localStorage
@@ -1200,7 +1237,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const markAsRead = async (id: string) => {
     const readIds = getReadNotificationIds();
     readIds.add(id);
-    saveReadNotificationIds(readIds);
+    await saveReadNotificationIds(readIds);
 
     setNotifications(prev => {
       const updated = prev.map(n => n.id === id ? { ...n, isRead: true } : n);
@@ -1216,7 +1253,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     notifications.forEach(n => {
       readIds.add(n.id);
     });
-    saveReadNotificationIds(readIds);
+    await saveReadNotificationIds(readIds);
 
     const updatedNotifications = notifications.map(n => ({ ...n, isRead: true }));
     setNotifications(updatedNotifications);
