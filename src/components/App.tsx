@@ -1,18 +1,21 @@
-import React, { useState, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, Component, ErrorInfo, ReactNode, Suspense, lazy } from 'react';
 import { useApp } from '../lib/context';
 import { useLanguage, Language } from '../lib/context';
 import { Login } from './Login';
-import { Dashboard } from './Dashboard';
-import { Projects } from './Projects';
-import { ProjectDetails } from './ProjectDetails';
-import { Transactions } from './Transactions';
-import { Reports } from './Reports';
-import { UsersManagement } from './Users';
-import { Profile } from './Profile';
-import { Clients } from './Clients';
-import { Stock } from './Stock';
-import { Units } from './Units';
-import { Finance } from './Finance';
+
+// Lazy-loaded pages: only the page the user opens is downloaded, keeping the
+// initial bundle small and the first paint fast.
+const Dashboard = lazy(() => import('./Dashboard').then(m => ({ default: m.Dashboard })));
+const Projects = lazy(() => import('./Projects').then(m => ({ default: m.Projects })));
+const ProjectDetails = lazy(() => import('./ProjectDetails').then(m => ({ default: m.ProjectDetails })));
+const Transactions = lazy(() => import('./Transactions').then(m => ({ default: m.Transactions })));
+const Reports = lazy(() => import('./Reports').then(m => ({ default: m.Reports })));
+const UsersManagement = lazy(() => import('./Users').then(m => ({ default: m.UsersManagement })));
+const Profile = lazy(() => import('./Profile').then(m => ({ default: m.Profile })));
+const Clients = lazy(() => import('./Clients').then(m => ({ default: m.Clients })));
+const Stock = lazy(() => import('./Stock').then(m => ({ default: m.Stock })));
+const Units = lazy(() => import('./Units').then(m => ({ default: m.Units })));
+const Finance = lazy(() => import('./Finance').then(m => ({ default: m.Finance })));
 import {
   LayoutDashboard,
   Building2,
@@ -82,6 +85,16 @@ class PageErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
     return this.props.children;
   }
 }
+
+// Lightweight loading fallback shown while a lazy page chunk is being fetched.
+const PageLoader: React.FC = () => (
+  <div className="flex items-center justify-center py-24" dir="rtl">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-10 h-10 border-3 border-gray-200 border-t-indigo-600 rounded-full animate-spin" />
+      <p className="text-sm text-gray-400">جارٍ التحميل...</p>
+    </div>
+  </div>
+);
 
 export const App: React.FC = () => {
   const { currentUser, isAuthenticated, logout, notifications, markAsRead, clearNotifications, canViewFinance, toasts, removeToast } = useApp();
@@ -497,7 +510,9 @@ export const App: React.FC = () => {
         {/* Page Content */}
         <div className="p-4 md:p-6 lg:p-8">
           <PageErrorBoundary fallbackNavigate={() => setCurrentPage('Dashboard')}>
-            {renderPage()}
+            <Suspense fallback={<PageLoader />}>
+              {renderPage()}
+            </Suspense>
           </PageErrorBoundary>
         </div>
       </main>
