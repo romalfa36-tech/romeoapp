@@ -632,7 +632,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           
           // Auto-push unsynced projects
           const unsynced = localProjects.filter(lp => isLocalNew(lp) && !parsed.some(sp => sp.id === lp.id));
-          console.log(`[SYNC PROJECTS] localProjects count: ${localProjects.length}, parsed count: ${parsed.length}, unsynced count: ${unsynced.length}`);
           for (const up of unsynced) {
             try {
               const { error: insErr } = await supabase.from('projects').insert([{
@@ -651,7 +650,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           
           const merged = [...unsynced, ...parsed];
           const unique = Array.from(new Map(merged.map(p => [p.id, p])).values());
-          console.log(`[SYNC PROJECTS] merged count: ${merged.length}, unique count: ${unique.length}`);
           
           setProjects(unique);
           localStorage.setItem(PROJECTS_KEY, JSON.stringify(unique));
@@ -1355,11 +1353,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdBy: currentUser?.name || '',
       assignedTo: project.assignedTo || [],
     };
-    console.log(`[ADD PROJECT] newProject ID: ${newProject.id}`);
     const newProjects = [newProject, ...projects];
     setProjects(newProjects);
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects));
-    console.log(`[ADD PROJECT] Saved to localStorage. Total projects now: ${newProjects.length}`);
     
     addNotification({
       type: 'project',
@@ -1374,11 +1370,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...projectToDB(newProject)
       }]);
       if (error) {
-        console.error('Supabase addProject DB error:', error);
-      } else {
-        console.log(`[ADD PROJECT] Successfully inserted to Supabase: ${newProject.id}`);
+        console.error('Supabase addProject error:', error);
       }
-      console.log(`[ADD PROJECT] Calling syncData...`);
       await syncData();
     } catch (err) {
       console.error('Supabase addProject error:', err);

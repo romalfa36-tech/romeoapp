@@ -1,4 +1,4 @@
-const CACHE_NAME = 'romeo-app-v2';
+const CACHE_NAME = 'beeforce-app-v3';
 const ASSETS = [
   '/',
   '/index.html',
@@ -15,14 +15,13 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate Service Worker and clean up old caches
+// Activate: clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
-            console.log('Clearing old service worker cache:', cache);
             return caches.delete(cache);
           }
         })
@@ -31,20 +30,23 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Network-first strategy for all requests to ensure they always get the latest updates when online
+// Network-first strategy: always fetch fresh, fallback to cache when offline
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
-  
-  // Skip browser extension requests or chrome-extension URLs
-  if (event.request.url.startsWith('chrome-extension') || event.request.url.includes('extension')) {
+
+  if (
+    event.request.url.startsWith('chrome-extension') ||
+    event.request.url.includes('extension') ||
+    event.request.url.includes('supabase.co') ||
+    event.request.url.includes('googleapis.com') ||
+    event.request.url.includes('generativelanguage')
+  ) {
     return;
   }
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // If valid response, clone it and save to cache
         if (response && response.status === 200 && response.type === 'basic') {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -53,9 +55,6 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => {
-        // If network fails, serve from cache
-        return caches.match(event.request);
-      })
+      .catch(() => caches.match(event.request))
   );
 });

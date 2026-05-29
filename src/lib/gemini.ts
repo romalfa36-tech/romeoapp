@@ -8,7 +8,6 @@ export interface ParsedReceiptData {
 }
 
 // Convert a public image URL to base64 format for Gemini API
-// Convert a public image URL to base64 format for Gemini API
 const urlToBase64 = async (url: string): Promise<{ mimeType: string; data: string }> => {
   // If it's already a local base64 data URI, extract details directly to avoid network fetch
   if (url.startsWith('data:')) {
